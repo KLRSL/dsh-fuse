@@ -49,6 +49,9 @@ window.__ModuleLoader__.load({
 
     // ---------- 全局样式（含令牌 CSS 变量占位） ----------
     const CSS = `
+/* 渲染容器宽度与输入框（composer）对齐：DSH 对话内容最大宽度 748px 居中
+   （--dsh-chat-content-width 由 conversation 包定义）；全屏时也不撑满 */
+.fuse-root-holder{width:100%;max-width:var(--dsh-chat-content-width,748px);margin-left:auto;margin-right:auto;box-sizing:border-box}
 .fuse-root{position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Roboto,sans-serif;color:var(--fuse-text,#1A1A1A);line-height:1.7;font-size:14px}
 .fuse-root *{box-sizing:border-box}
 .fuse-card{background:var(--fuse-bg,#fff);border:1px solid var(--fuse-border,#E5E7EB);border-radius:var(--fuse-radius-lg,16px);box-shadow:var(--fuse-shadow-card,0 1px 3px rgba(26,26,26,.08));overflow:hidden}
