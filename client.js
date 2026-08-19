@@ -975,6 +975,14 @@ window.__ModuleLoader__.load({
       loadThemes()
       const disposers = []
 
+      // 画板样式注入（幂等）
+      if (typeof document !== 'undefined' && !document.getElementById('fuse-board-style')) {
+        const styleEl = document.createElement('style')
+        styleEl.textContent = FUSE_BOARD_CSS
+        styleEl.id = 'fuse-board-style'
+        document.head.appendChild(styleEl)
+      }
+
       // 设置页注册（biomemory 同款：settings.section slots 注入）
       disposers.push(ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
         name: 'settings.section',
@@ -983,13 +991,13 @@ window.__ModuleLoader__.load({
         label: () => FS_COPY['zh-CN'].title,
       }, FuseSettingsPage)), 'dsh-fuse: settings'))
 
-      // 侧边栏入口（官方扩展点 sidebar.footer.action，同 dsh-cost-meter 范例）：
-      // order=-1 排在「当日费用」（cost-meter order=0）上面；wide=行按钮，rail=小圆框
-      disposers.push(ctx.effect(() => ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
-        name: 'sidebar.footer.action',
-        id: 'fuse-sidebar',
-        order: -1,
-      }, FuseSidebarButton)), 'dsh-fuse: sidebar entry'))
+      // 画板 dock：渲染在输入框正上方（conversation.composer.dock，
+      // cost-meter 的余额 chips 同款位置）——宽度天然与输入框对齐
+      disposers.push(ctx.effect(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
+        name: 'conversation.composer.dock',
+        id: 'fuse-board',
+        order: 8,
+      }, FuseBoardDock)), 'dsh-fuse: board dock'))
 
       // Registry channel: host 提供 registerFenceRenderer 时直挂（契约宿主）
       const primitives = require?.('@deepseek-ai/dsh-client-ui-primitives') ?? {}
@@ -1009,139 +1017,91 @@ window.__ModuleLoader__.load({
     }
 
     // ==========================================================================
-    // 侧边栏入口 + Fuse 面板（页面级 UI 产物展示区）
+    // 画板 dock（输入框上方，宽度与输入框对齐）
     // ==========================================================================
 
-    const FUSE_PANEL_CSS = `
-.fuse-panel-mask{position:fixed;inset:0;z-index:2147482000;background:rgba(15,17,21,.32);backdrop-filter:blur(2px);display:flex;justify-content:flex-end}
-.fuse-panel{width:min(680px,92vw);height:100%;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:-12px 0 40px rgba(15,17,21,.22);display:flex;flex-direction:column;animation:fuseSlideIn .22s ease-out}
-@keyframes fuseSlideIn{from{transform:translateX(24px);opacity:.4}to{transform:none;opacity:1}}
-.fuse-panel-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--dsw-alias-border-l2,#d0d7de)}
-.fuse-panel-head .t{font-size:15px;font-weight:600;color:var(--dsw-alias-label-primary,#1f2328)}
-.fuse-panel-head .x{margin-left:auto;border:0;background:none;font-size:16px;color:var(--dsw-alias-label-tertiary,#6e7781);cursor:pointer;padding:4px 8px;border-radius:8px}
-.fuse-panel-head .x:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(65,118,230,.08))}
-.fuse-panel-body{flex:1;overflow:auto;padding:18px}
-.fuse-panel-empty{color:var(--dsw-alias-label-tertiary,#6e7781);font-size:13px;text-align:center;padding:48px 20px;line-height:1.8}
-.fuse-panel-tip{font-size:12px;color:var(--dsw-alias-label-tertiary,#6e7781);margin-top:12px;text-align:center}
-.fuse-sidebar-btn{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:0;background:none;color:var(--dsw-alias-label-primary,#1f2328);font-size:13px;cursor:pointer;border-radius:10px}
-.fuse-sidebar-btn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(65,118,230,.08))}
-.fuse-sidebar-btn .ic{font-size:15px}
-.fuse-sidebar-rail{width:36px;height:36px;display:flex;align-items:center;justify-content:center;border:0;background:none;font-size:16px;cursor:pointer;border-radius:10px}
-.fuse-sidebar-rail:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(65,118,230,.08))}
-.fuse-flow-entry{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--dsw-alias-border-l2,rgba(201,169,106,.35))}
-.fuse-flow-entry:last-child{border-bottom:0}
-.fuse-flow-mark{flex:none;width:8px;height:8px;border-radius:50%;margin-top:6px}
-.fuse-flow-mark.ink{background:#8A857E}
-.fuse-flow-text{flex:1;min-width:0}
-.fuse-flow-text .t{font-size:13px;color:var(--dsw-alias-label-primary,#1f2328)}
-.fuse-flow-text .d{font-size:12px;color:var(--dsw-alias-label-tertiary,#6e7781);margin-top:2px;line-height:1.6}
+    const FUSE_BOARD_CSS = `
+.fuse-board-dock{width:100%;max-width:100%;box-sizing:border-box}
+.fuse-board-card{width:100%;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:12px;background:var(--dsw-alias-bg-layer-3,#fff);overflow:hidden}
+.fuse-board-head{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--dsw-alias-border-l2,#d0d7de);font-size:12px;color:var(--dsw-alias-label-tertiary,#6e7781)}
+.fuse-board-head .tag{color:var(--dsw-alias-label-secondary,#57606a)}
+.fuse-board-body{padding:14px}
+.fuse-board-body .fuse-root{width:100%}
+.fuse-board-body .fuse-body{padding:0}
+.fuse-board-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.fuse-board-stat{padding:10px 12px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#f6f8fa)}
+.fuse-board-stat .v{font-size:22px;font-weight:600;color:var(--dsw-alias-label-primary,#1f2328)}
+.fuse-board-stat .l{font-size:12px;color:var(--dsw-alias-label-secondary,#57606a);margin-top:2px}
+.fuse-board-row{display:flex;gap:10px;flex-wrap:wrap}
+.fuse-board-col{flex:1;min-width:180px}
+.fuse-board-col h5{margin:0 0 6px;font-size:12px;color:var(--dsw-alias-label-secondary,#57606a)}
+.fuse-board-mode{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:8px;background:var(--dsw-alias-bg-layer-2,#f6f8fa);font-size:12px;color:var(--dsw-alias-label-primary,#1f2328);margin-right:6px;margin-bottom:6px}
+.fuse-board-mode.on{border-color:#4176e6;background:rgba(65,118,230,.08);color:#4176e6}
 `
 
-    // 侧边栏按钮：wide=行 / rail=小圆框；点击打开 Fuse 面板
-    function FuseSidebarButton(props) {
+    // 画板 dock 组件：渲染设计稿画板（归 Fuse/UI 插件），宽度 100% 对齐输入框
+    function FuseBoardDock() {
       const react2 = require('react')
-      const [open, setOpen] = react2.useState(false)
-      const wide = !!props.wide
       const ref = react2.useRef(null)
       const h = react2.createElement
 
-      // 面板挂载：直接渲染到 body 末尾（浮层）
       react2.useEffect(() => {
-        if (!open) return
-        const mask = document.createElement('div')
-        mask.className = 'fuse-panel-mask'
-        mask.innerHTML = ''
-        const panel = document.createElement('div')
-        panel.className = 'fuse-panel'
-        // 头部
+        const host = ref.current
+        if (!host) return
+        host.innerHTML = ''
+        // 画板内容：设计稿 v2（巨构视觉仪表盘）——Fuse 页面级 UI 产物展示
+        const wrap = document.createElement('div')
+        wrap.className = 'fuse-board-card'
         const head = document.createElement('div')
-        head.className = 'fuse-panel-head'
-        const title = document.createElement('span')
-        title.className = 't'
-        title.textContent = 'UI 工作台'
-        const close = document.createElement('button')
-        close.className = 'x'
-        close.textContent = '✕'
-        close.addEventListener('click', () => setOpen(false))
-        head.append(title, close)
-        // 主体：渲染设计稿画板（巨构视觉仪表盘 —— dsh-fuse 页面级 UI 产物）
+        head.className = 'fuse-board-head'
+        head.innerHTML = '<span class="tag">🧩 UI 工作台</span> · 设计稿 v2（巨构视觉）'
         const body = document.createElement('div')
-        body.className = 'fuse-panel-body'
-        const demoSpec = {
-          type: 'dashboard',
-          title: '记忆工作台',
-          subtitle: '数字海马体 · 151 条记忆 · 语义检索就绪',
-          theme: 'default',
-          components: [
-            { type: 'grid', cols: 4, items: [
-              { type: 'card', items: [{ type: 'stat', label: '全部记忆', value: '151' }] },
-              { type: 'card', items: [{ type: 'stat', label: '记忆钉', value: '15' }] },
-              { type: 'card', items: [{ type: 'stat', label: '嵌入模型', value: '512维' }] },
-              { type: 'card', items: [{ type: 'stat', label: '近7天活动', value: '26' }] },
-            ]},
-            { type: 'divider' },
-            { type: 'text', size: 'h3', content: '记忆构成' },
-            { type: 'row', items: [
-              { type: 'card', title: '类型分布', items: [
-                { type: 'list', items: [{ title: '事实 128', desc: '85%' }, { title: '偏好 15', desc: '10%' }, { title: '备注 8', desc: '5%' }] },
-              ]},
-              { type: 'card', title: '权重分布', items: [
-                { type: 'list', items: [{ title: '10+ 135', desc: '89%' }, { title: '5-9 11', desc: '7%' }, { title: '<3 5', desc: '3%' }] },
-              ]},
-              { type: 'card', title: '近 7 天活动', items: [
-                { type: 'list', items: [{ title: 'RECOVER 恢复 ×20', desc: '冲突误判修复' }, { title: 'MIGRATE 迁移 ×2', desc: 'Markdown→SQLite' }] },
-              ]},
-            ]},
-            { type: 'divider' },
-            { type: 'text', size: 'h3', content: '记忆流' },
-            { type: 'row', items: [
-              { type: 'button', text: '◉ 混合检索 hybrid', style: 'primary' },
-              { type: 'button', text: '○ 关键词 exact' },
-              { type: 'button', text: '○ 语义 semantic' },
-            ]},
-          ],
+        body.className = 'fuse-board-body'
+        // 4 状态卡
+        const grid = document.createElement('div')
+        grid.className = 'fuse-board-grid'
+        const stats = [['151', '全部记忆'], ['15', '记忆钉'], ['512维', '嵌入模型'], ['26', '近7天活动']]
+        for (const [v, l] of stats) {
+          const card = document.createElement('div')
+          card.className = 'fuse-board-stat'
+          card.appendChild(Object.assign(document.createElement('div'), { className: 'v', textContent: v }))
+          card.appendChild(Object.assign(document.createElement('div'), { className: 'l', textContent: l }))
+          grid.appendChild(card)
         }
-        const host = document.createElement('div')
-        const card = document.createElement('div')
-        card.className = 'fuse-root fuse-card'
-        applyTheme(card, 'default')
-        const body2 = document.createElement('div')
-        body2.className = 'fuse-body'
-        card.appendChild(body2)
-        if (demoSpec.title) {
-          body2.appendChild(Object.assign(document.createElement('div'), { className: 'fuse-title', textContent: demoSpec.title }))
-          if (demoSpec.subtitle) body2.appendChild(Object.assign(document.createElement('div'), { className: 'fuse-subtitle', textContent: demoSpec.subtitle }))
+        body.appendChild(grid)
+        // 记忆构成 + 记忆流
+        const row = document.createElement('div')
+        row.className = 'fuse-board-row'
+        const cols = [
+          ['类型分布', ['事实 128', '偏好 15', '备注 8']],
+          ['权重分布', ['10+ 135', '5-9 11', '<3 5']],
+          ['近 7 天活动', ['RECOVER ×20', 'MIGRATE ×2', 'RECALL ×2']],
+        ]
+        for (const [title, items] of cols) {
+          const col = document.createElement('div')
+          col.className = 'fuse-board-col'
+          col.appendChild(Object.assign(document.createElement('h5'), { textContent: title }))
+          for (const it of items) {
+            col.appendChild(Object.assign(document.createElement('div'), { className: 'fuse-board-mode', textContent: it }))
+          }
+          row.appendChild(col)
         }
-        for (const c of demoSpec.components) {
-          const [node] = renderNode(c, runtimeCtx ?? {}, 'demo:' + c.type)
-          body2.appendChild(node)
+        body.appendChild(row)
+        // 记忆流模式
+        const modes = document.createElement('div')
+        modes.style.marginTop = '10px'
+        const modeDefs = [['◉ 混合检索 hybrid', true], ['○ 关键词 exact', false], ['○ 语义 semantic', false]]
+        for (const [label, on] of modeDefs) {
+          modes.appendChild(Object.assign(document.createElement('span'), { className: on ? 'fuse-board-mode on' : 'fuse-board-mode', textContent: label }))
         }
-        host.appendChild(card)
-        body.appendChild(host)
-        const tip = document.createElement('div')
-        tip.className = 'fuse-panel-tip'
-        tip.textContent = '在对话中用 ```dsh-fuse 围栏可生成任意页面级 UI，点击元素即可走查微调'
-        body.appendChild(tip)
-        panel.append(head, body)
-        mask.appendChild(panel)
-        mask.addEventListener('click', (ev) => { if (ev.target === mask) setOpen(false) })
-        document.body.appendChild(mask)
-        return () => mask.remove()
-      }, [open])
+        body.appendChild(modes)
+        wrap.append(head, body)
+        host.appendChild(wrap)
+      }, [])
 
-      if (!wide) {
-        return h('button', { className: 'fuse-sidebar-rail', title: 'UI 工作台', onClick: () => setOpen(!open) }, '🧩')
-      }
-      return h('button', { className: 'fuse-sidebar-btn', onClick: () => setOpen(!open) }, h('span', { className: 'ic' }, '🧩'), h('span', null, 'UI 工作台'))
+      return h('div', { ref, className: 'fuse-board-dock' })
     }
 
-    // 面板样式注入（apply 时挂一次）
-    if (typeof document !== 'undefined') {
-      const styleEl = document.createElement('style')
-      styleEl.textContent = FUSE_PANEL_CSS
-      styleEl.id = 'fuse-panel-style'
-      document.head.appendChild(styleEl)
-    }
 
     module.exports = { apply, inject }
     return module.exports

@@ -183,9 +183,9 @@ console.log('\n[6] 清理（disposer）')
 {
   disposer()
   const styles = [...document.querySelectorAll('style')]
-  // 面板样式（fuse-panel-style）是模块级常驻样式，disposer 不移除；其余都应清掉
-  const leftovers = styles.filter((s) => s.id !== 'fuse-panel-style')
-  check('插件样式已移除（面板常驻样式除外）', leftovers.length === 0, leftovers.map((s) => s.id || s.className).join(','))
+  // 画板样式（fuse-board-style）是常驻样式，disposer 不移除；其余都应清掉
+  const leftovers = styles.filter((s) => s.id !== 'fuse-board-style')
+  check('插件样式已移除（画板常驻样式除外）', leftovers.length === 0, leftovers.map((s) => s.id || s.className).join(','))
 }
 
 console.log(failures === 0 ? '\n✅ 客户端测试全部通过' : `\n❌ ${failures} 项失败`)
