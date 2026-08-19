@@ -1,0 +1,52 @@
+{
+  "$comment": "Fuse 代码规范 —— 借鉴 Airbnb/Google/阿里编码规范，收敛为 DSH 生成代码的统一规约。",
+  "naming": {
+    "variables": "camelCase",
+    "functions": "camelCase",
+    "components": "PascalCase",
+    "files": "kebab-case",
+    "directories": "kebab-case",
+    "constants": "UPPER_SNAKE_CASE",
+    "cssClasses": "kebab-case"
+  },
+  "syntax": {
+    "preferConst": true,
+    "forbidVar": true,
+    "preferArrowFunctions": true,
+    "esVersion": "ES2022+",
+    "typescriptStrict": true,
+    "noAny": true
+  },
+  "formatting": {
+    "indentSize": 2,
+    "maxLineLength": 100,
+    "quoteStyle": "single",
+    "semicolons": true,
+    "trailingComma": "es5"
+  },
+  "structure": {
+    "maxFileLines": 800,
+    "maxFunctionLines": 60,
+    "directoryPattern": "src/components/、src/pages/、src/utils/、src/types/",
+    "oneComponentPerFile": true,
+    "componentFileLayout": "组件导出在前，辅助函数在后"
+  },
+  "react": {
+    "preferFunctionComponents": true,
+    "hooksOrderStable": true,
+    "propsNaming": "camelCase, 布尔 props 用 is/has 前缀",
+    "eventHandlers": "on 前缀",
+    "noInlineObjectProps": true
+  },
+  "css": {
+    "preferCssVariables": true,
+    "spacingSystem": "4/8px 栅格",
+    "colorUsage": "只从设计令牌取色，禁止硬编码十六进制",
+    "borderRadius": "只从设计令牌取圆角"
+  },
+  "comments": {
+    "zhComments": true,
+    "explainWhyNotWhat": true,
+    "noCommentedOutCode": true
+  }
+}
