@@ -975,14 +975,6 @@ window.__ModuleLoader__.load({
       loadThemes()
       const disposers = []
 
-      // 画板样式注入（幂等）
-      if (typeof document !== 'undefined' && !document.getElementById('fuse-board-style')) {
-        const styleEl = document.createElement('style')
-        styleEl.textContent = FUSE_BOARD_CSS
-        styleEl.id = 'fuse-board-style'
-        document.head.appendChild(styleEl)
-      }
-
       // 设置页注册（biomemory 同款：settings.section slots 注入）
       disposers.push(ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
         name: 'settings.section',
@@ -990,14 +982,6 @@ window.__ModuleLoader__.load({
         order: 70,
         label: () => FS_COPY['zh-CN'].title,
       }, FuseSettingsPage)), 'dsh-fuse: settings'))
-
-      // 画板 dock：渲染在输入框正上方（conversation.composer.dock，
-      // cost-meter 的余额 chips 同款位置）——宽度天然与输入框对齐
-      disposers.push(ctx.effect(() => ctx.slots.inject('conversation.composer.dock', () => ctx.slots.register({
-        name: 'conversation.composer.dock',
-        id: 'fuse-board',
-        order: 8,
-      }, FuseBoardDock)), 'dsh-fuse: board dock'))
 
       // Registry channel: host 提供 registerFenceRenderer 时直挂（契约宿主）
       const primitives = require?.('@deepseek-ai/dsh-client-ui-primitives') ?? {}
@@ -1017,17 +1001,15 @@ window.__ModuleLoader__.load({
     }
 
     // ==========================================================================
-    // 画板 dock（输入框上方，宽度与输入框对齐）
+    // 画板（设计稿 v2 · 巨构视觉）—— dsh-fuse 页面级 UI 产物
+    // 渲染为对话流中的卡片（宽度 100% 与输入框对齐）；不占用输入框上方 dock
     // ==========================================================================
 
     const FUSE_BOARD_CSS = `
-.fuse-board-dock{width:100%;max-width:100%;box-sizing:border-box}
-.fuse-board-card{width:100%;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:12px;background:var(--dsw-alias-bg-layer-3,#fff);overflow:hidden}
+.fuse-board-card{width:100%;max-width:100%;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:12px;background:var(--dsw-alias-bg-layer-3,#fff);overflow:hidden}
 .fuse-board-head{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--dsw-alias-border-l2,#d0d7de);font-size:12px;color:var(--dsw-alias-label-tertiary,#6e7781)}
 .fuse-board-head .tag{color:var(--dsw-alias-label-secondary,#57606a)}
 .fuse-board-body{padding:14px}
-.fuse-board-body .fuse-root{width:100%}
-.fuse-board-body .fuse-body{padding:0}
 .fuse-board-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
 .fuse-board-stat{padding:10px 12px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#f6f8fa)}
 .fuse-board-stat .v{font-size:22px;font-weight:600;color:var(--dsw-alias-label-primary,#1f2328)}
@@ -1039,71 +1021,80 @@ window.__ModuleLoader__.load({
 .fuse-board-mode.on{border-color:#4176e6;background:rgba(65,118,230,.08);color:#4176e6}
 `
 
-    // 画板 dock 组件：渲染设计稿画板（归 Fuse/UI 插件），宽度 100% 对齐输入框
-    function FuseBoardDock() {
-      const react2 = require('react')
-      const ref = react2.useRef(null)
-      const h = react2.createElement
-
-      react2.useEffect(() => {
-        const host = ref.current
-        if (!host) return
-        host.innerHTML = ''
-        // 画板内容：设计稿 v2（巨构视觉仪表盘）——Fuse 页面级 UI 产物展示
-        const wrap = document.createElement('div')
-        wrap.className = 'fuse-board-card'
-        const head = document.createElement('div')
-        head.className = 'fuse-board-head'
-        head.innerHTML = '<span class="tag">🧩 UI 工作台</span> · 设计稿 v2（巨构视觉）'
-        const body = document.createElement('div')
-        body.className = 'fuse-board-body'
-        // 4 状态卡
-        const grid = document.createElement('div')
-        grid.className = 'fuse-board-grid'
-        const stats = [['151', '全部记忆'], ['15', '记忆钉'], ['512维', '嵌入模型'], ['26', '近7天活动']]
-        for (const [v, l] of stats) {
-          const card = document.createElement('div')
-          card.className = 'fuse-board-stat'
-          card.appendChild(Object.assign(document.createElement('div'), { className: 'v', textContent: v }))
-          card.appendChild(Object.assign(document.createElement('div'), { className: 'l', textContent: l }))
-          grid.appendChild(card)
+    /** 渲染画板到指定容器（对话流卡片，宽度 100% 对齐输入框） */
+    function renderBoardCanvas(host) {
+      if (!host) return
+      host.innerHTML = ''
+      const wrap = document.createElement('div')
+      wrap.className = 'fuse-board-card'
+      const head = document.createElement('div')
+      head.className = 'fuse-board-head'
+      head.innerHTML = '<span class="tag">🧩 UI 工作台</span> · 设计稿 v2（巨构视觉）'
+      const body = document.createElement('div')
+      body.className = 'fuse-board-body'
+      // 4 状态卡
+      const grid = document.createElement('div')
+      grid.className = 'fuse-board-grid'
+      const stats = [['151', '全部记忆'], ['15', '记忆钉'], ['512维', '嵌入模型'], ['26', '近7天活动']]
+      for (const [v, l] of stats) {
+        const card = document.createElement('div')
+        card.className = 'fuse-board-stat'
+        card.appendChild(Object.assign(document.createElement('div'), { className: 'v', textContent: v }))
+        card.appendChild(Object.assign(document.createElement('div'), { className: 'l', textContent: l }))
+        grid.appendChild(card)
+      }
+      body.appendChild(grid)
+      // 记忆构成 + 记忆流
+      const row = document.createElement('div')
+      row.className = 'fuse-board-row'
+      const cols = [
+        ['类型分布', ['事实 128', '偏好 15', '备注 8']],
+        ['权重分布', ['10+ 135', '5-9 11', '<3 5']],
+        ['近 7 天活动', ['RECOVER ×20', 'MIGRATE ×2', 'RECALL ×2']],
+      ]
+      for (const [title, items] of cols) {
+        const col = document.createElement('div')
+        col.className = 'fuse-board-col'
+        col.appendChild(Object.assign(document.createElement('h5'), { textContent: title }))
+        for (const it of items) {
+          col.appendChild(Object.assign(document.createElement('div'), { className: 'fuse-board-mode', textContent: it }))
         }
-        body.appendChild(grid)
-        // 记忆构成 + 记忆流
-        const row = document.createElement('div')
-        row.className = 'fuse-board-row'
-        const cols = [
-          ['类型分布', ['事实 128', '偏好 15', '备注 8']],
-          ['权重分布', ['10+ 135', '5-9 11', '<3 5']],
-          ['近 7 天活动', ['RECOVER ×20', 'MIGRATE ×2', 'RECALL ×2']],
-        ]
-        for (const [title, items] of cols) {
-          const col = document.createElement('div')
-          col.className = 'fuse-board-col'
-          col.appendChild(Object.assign(document.createElement('h5'), { textContent: title }))
-          for (const it of items) {
-            col.appendChild(Object.assign(document.createElement('div'), { className: 'fuse-board-mode', textContent: it }))
-          }
-          row.appendChild(col)
-        }
-        body.appendChild(row)
-        // 记忆流模式
-        const modes = document.createElement('div')
-        modes.style.marginTop = '10px'
-        const modeDefs = [['◉ 混合检索 hybrid', true], ['○ 关键词 exact', false], ['○ 语义 semantic', false]]
-        for (const [label, on] of modeDefs) {
-          modes.appendChild(Object.assign(document.createElement('span'), { className: on ? 'fuse-board-mode on' : 'fuse-board-mode', textContent: label }))
-        }
-        body.appendChild(modes)
-        wrap.append(head, body)
-        host.appendChild(wrap)
-      }, [])
-
-      return h('div', { ref, className: 'fuse-board-dock' })
+        row.appendChild(col)
+      }
+      body.appendChild(row)
+      // 记忆流模式
+      const modes = document.createElement('div')
+      modes.style.marginTop = '10px'
+      const modeDefs = [['◉ 混合检索 hybrid', true], ['○ 关键词 exact', false], ['○ 语义 semantic', false]]
+      for (const [label, on] of modeDefs) {
+        modes.appendChild(Object.assign(document.createElement('span'), { className: on ? 'fuse-board-mode on' : 'fuse-board-mode', textContent: label }))
+      }
+      body.appendChild(modes)
+      wrap.append(head, body)
+      host.appendChild(wrap)
+      // 样式注入（幂等）
+      if (!document.getElementById('fuse-board-style')) {
+        const styleEl = document.createElement('style')
+        styleEl.textContent = FUSE_BOARD_CSS
+        styleEl.id = 'fuse-board-style'
+        document.head.appendChild(styleEl)
+      }
+      return wrap
     }
 
+    // 对话流渲染的 dsh-fuse 卡片宽度对齐输入框：DOM 通道接管时保证容器 100% 宽
+    function ensureBoardStyles() {
+      if (typeof document === 'undefined' || document.getElementById('fuse-board-style')) return
+      const styleEl = document.createElement('style')
+      styleEl.textContent = FUSE_BOARD_CSS + '\n.fuse-root-holder{width:100%;max-width:100%}'
+      styleEl.id = 'fuse-board-style'
+      document.head.appendChild(styleEl)
+    }
 
-    module.exports = { apply, inject }
+    // apply 时确保宽度对齐样式就位
+    if (typeof document !== 'undefined') ensureBoardStyles()
+
+    module.exports = { apply, inject, renderBoardCanvas, ensureBoardStyles }
     return module.exports
   },
 })
