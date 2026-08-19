@@ -91,6 +91,7 @@ console.log('\n[1] 侧边栏入口注册')
   const footer = registered.find((r) => r.def?.name === 'sidebar.footer.action')
   check('sidebar.footer.action 已注册', !!footer, JSON.stringify(registered.map((r) => r.def?.name)))
   check('id = fuse-sidebar', footer?.def?.id === 'fuse-sidebar')
+  check('order=-1（排在当日费用 order=0 上面）', footer?.def?.order === -1, String(footer?.def?.order))
   const settings = registered.find((r) => r.def?.name === 'settings.section')
   check('设置页注册保留', !!settings)
   const rail = registered.find((r) => r.def?.name === 'sidebar.footer.action')?.comp

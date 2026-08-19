@@ -984,11 +984,11 @@ window.__ModuleLoader__.load({
       }, FuseSettingsPage)), 'dsh-fuse: settings'))
 
       // 侧边栏入口（官方扩展点 sidebar.footer.action，同 dsh-cost-meter 范例）：
-      // wide=展开栏显示「🧩 Fuse」行，rail=窄栏小圆框图标；点击弹出 Fuse 面板
+      // order=-1 排在「当日费用」（cost-meter order=0）上面；wide=行按钮，rail=小圆框
       disposers.push(ctx.effect(() => ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
         name: 'sidebar.footer.action',
         id: 'fuse-sidebar',
-        order: 5,
+        order: -1,
       }, FuseSidebarButton)), 'dsh-fuse: sidebar entry'))
 
       // Registry channel: host 提供 registerFenceRenderer 时直挂（契约宿主）
