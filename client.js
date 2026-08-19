@@ -1064,41 +1064,22 @@ window.__ModuleLoader__.load({
         close.textContent = '✕'
         close.addEventListener('click', () => setOpen(false))
         head.append(title, close)
-        // 主体：渲染示例页面（记忆工作台设计稿 v2 —— 巨构视觉）
+        // 主体：渲染 Fuse 页面级 UI 示例（登录页，展示 dsh-fuse 能力）
         const body = document.createElement('div')
         body.className = 'fuse-panel-body'
         const demoSpec = {
-          type: 'dashboard',
-          title: '记忆工作台',
-          subtitle: '数字海马体 · 151 条记忆 · 语义检索就绪',
+          type: 'login_form',
+          title: '欢迎回来',
+          subtitle: 'dsh-fuse 页面级 UI · 设计令牌驱动',
           theme: 'default',
           components: [
-            { type: 'grid', cols: 4, items: [
-              { type: 'card', items: [{ type: 'stat', label: '全部记忆', value: '151' }] },
-              { type: 'card', items: [{ type: 'stat', label: '记忆钉', value: '15' }] },
-              { type: 'card', items: [{ type: 'stat', label: '嵌入模型', value: '512维' }] },
-              { type: 'card', items: [{ type: 'stat', label: '近7天活动', value: '26' }] },
-            ]},
-            { type: 'divider' },
-            { type: 'text', size: 'h3', content: '记忆构成' },
+            { type: 'input', label: '用户名', placeholder: '请输入用户名' },
+            { type: 'input', label: '密码', placeholder: '请输入密码', inputType: 'password' },
             { type: 'row', items: [
-              { type: 'card', title: '类型分布', items: [
-                { type: 'list', items: [{ title: '事实 128', desc: '85%' }, { title: '偏好 15', desc: '10%' }, { title: '备注 8', desc: '5%' }] },
-              ]},
-              { type: 'card', title: '权重分布', items: [
-                { type: 'list', items: [{ title: '10+ 135', desc: '89%' }, { title: '5-9 11', desc: '7%' }, { title: '<3 5', desc: '3%' }] },
-              ]},
-              { type: 'card', title: '近 7 天活动', items: [
-                { type: 'list', items: [{ title: 'RECOVER 恢复 ×20', desc: '冲突误判修复' }, { title: 'MIGRATE 迁移 ×2', desc: 'Markdown→SQLite' }] },
-              ]},
+              { type: 'checkbox', label: '记住我' },
+              { type: 'link', label: '忘记密码？' },
             ]},
-            { type: 'divider' },
-            { type: 'text', size: 'h3', content: '记忆流' },
-            { type: 'row', items: [
-              { type: 'button', text: '◉ 混合检索 hybrid', style: 'primary' },
-              { type: 'button', text: '○ 关键词 exact' },
-              { type: 'button', text: '○ 语义 semantic' },
-            ]},
+            { type: 'button', text: '登 录', style: 'primary', full: true },
           ],
         }
         const host = document.createElement('div')
