@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // test-settings.mjs — dsh-fuse 设置页组件测试（jsdom + React 真实渲染）
 // 运行: node tests/test-settings.mjs
 // 验证: settings.section 注册、三 tab 渲染、主题令牌展示、代码规范展示、示例页
@@ -87,14 +87,15 @@ window.__ModuleLoader__ = {
     const fakeCtx = {
       slots: {
         inject: (slotName, registerFn) => {
-          // registerFn() 返回 register() 的结果；register 捕获组件
+          // 只捕获 settings.section（sidebar.footer.action 由 test-sidebar 覆盖）
+          if (slotName !== 'settings.section') return () => {}
           captured = { slotName }
           const result = registerFn()
           if (result && result.component) captured.component = result.component
           return () => {}
         },
         register: (def, comp) => {
-          if (captured) captured.component = comp
+          if (captured && captured.slotName === 'settings.section') captured.component = comp
           return { component: comp, def }
         },
       },

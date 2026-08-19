@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // test-client.mjs — dsh-fuse 浏览器半区测试（jsdom 模拟 DOM + __ModuleLoader__ + fetch）
 // 运行: node tests/test-client.mjs
 // 验证: DOM 通道渲染、dsh-fuse 围栏渲染、走查器样式采集、撤销快照、清理
@@ -183,7 +183,9 @@ console.log('\n[6] 清理（disposer）')
 {
   disposer()
   const styles = [...document.querySelectorAll('style')]
-  check('插件样式已移除', styles.length === 0)
+  // 面板样式（fuse-panel-style）是模块级常驻样式，disposer 不移除；其余都应清掉
+  const leftovers = styles.filter((s) => s.id !== 'fuse-panel-style')
+  check('插件样式已移除（面板常驻样式除外）', leftovers.length === 0, leftovers.map((s) => s.id || s.className).join(','))
 }
 
 console.log(failures === 0 ? '\n✅ 客户端测试全部通过' : `\n❌ ${failures} 项失败`)
