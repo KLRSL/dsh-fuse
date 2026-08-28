@@ -1,7 +1,7 @@
 {
   "name": "dsh-fuse",
-  "version": "1.0.0",
-  "description": "Fuse v1.0 — UI 设计 + 代码规范一体化插件（ui-aesthetics 技能升级版）：设计令牌 theme.json + 代码规范 code-style.json + dsh-fuse fence 页面级渲染 + 走查器像素级微调 + 撤销历史",
+  "version": "1.0.1",
+  "description": "Fuse v1.0.1 — UI 设计 + 代码规范一体化插件（ui-aesthetics 技能升级版）：设计令牌 theme.json + 代码规范 code-style.json + dsh-fuse fence 页面级渲染 + 走查器像素级微调 + 撤销历史 + UI 现代化",
   "type": "module",
   "main": "index.mjs",
   "exports": {
@@ -23,6 +23,12 @@
       "patch": "./cordis.patch.yml"
     },
     "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
       "platform": "web"
     }
   },
@@ -36,5 +42,9 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0"
+  },
+  "allowScripts": {
+    "onnxruntime-node@1.24.3": true,
+    "sharp@0.34.5": true
   }
 }

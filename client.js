@@ -35,7 +35,7 @@ window.__ModuleLoader__.load({
     const MAX_NODES = 200              // 节点预算（防恶意输入，同 genui 量级）
     const MAX_DEPTH = 8
 
-    const CODE_BLOCK_SELECTORS = '.md-code-block, .code-block, .code-block-small'
+    const CODE_BLOCK_SELECTORS = 'pre, .md-code-block, .code-block, .code-block-small, [data-lang]'
 
     // 白名单组件词汇（与 host 侧 FUSE_COMPONENT_TYPES 一致）
     const CONTAINER_TYPES = new Set(['page', 'card', 'grid', 'row', 'col', 'section', 'tabs', 'hero', 'nav', 'header', 'footer', 'form'])
@@ -705,15 +705,22 @@ window.__ModuleLoader__.load({
       document.head.appendChild(style)
       const mounts = new Map() // fenceKey -> { container, block, lastRaw }
 
-      const findBlocks = () => Array.from(document.querySelectorAll(CODE_BLOCK_SELECTORS))
-        .filter((b) => {
+      const findBlocks = () => {
+        const cans = Array.from(document.querySelectorAll(CODE_BLOCK_SELECTORS))
+        return cans.filter((b) => {
           if (b.hasAttribute(PROCESSED)) return false
-          const label = b.querySelector('.md-code-block__header, .code-block__header, [class*="lang"]')
-          return label !== null && label.textContent.trim() === FENCE_LANG
+          // ① 语言标签 = dsh-fuse（支持常见的 pre 头/旧结构）
+          const label = b.querySelector('.md-code-block__header, .code-block__header, [class*="lang"], [data-lang]')
+          if (label !== null && label.textContent.trim() === FENCE_LANG) return true
+          // ② 结构无关兜底：内容本身是合法 dsh-fuse 规格（新前端哈希化 class 也能拦到）
+          const raw = b.tagName === 'PRE' ? b.textContent : (b.querySelector('pre')?.textContent ?? b.textContent)
+          const spec = parseSpec(raw ?? '')
+          return spec !== null && PAGE_KINDS.has(spec.type) && Array.isArray(spec.components)
         })
+      }
 
       const mountOne = (block) => {
-        const pre = block.querySelector('pre')
+        const pre = block.tagName === 'PRE' ? block : block.querySelector('pre')
         if (!pre) return
         block.setAttribute(PROCESSED, '1')
         const fenceKey = 'fuse:' + Math.random().toString(36).slice(2, 9)
@@ -949,53 +956,67 @@ window.__ModuleLoader__.load({
     }
 
     const FS_STYLES = `
-.fs-page{display:flex;flex-direction:column;gap:12px;font-size:13px;color:var(--dsw-alias-label-primary,#1f2328)}
-.fs-page h3{margin:0;font-size:16px}
-.fs-page h4{margin:14px 0 8px;font-size:13.5px}
-.fs-page h5{margin:10px 0 6px;font-size:12.5px;color:var(--dsw-alias-label-secondary,#57606a)}
-.fs-tabs{display:flex;gap:8px;border-bottom:1px solid var(--dsw-alias-border-l2,#d0d7de);padding-bottom:8px}
-.fs-tab{padding:5px 12px;border:1px solid transparent;border-radius:8px;background:none;color:var(--dsw-alias-label-secondary,#57606a);cursor:pointer;font-size:12.5px}
-.fs-tab.active{background:var(--dsw-alias-bg-layer-2,#f6f8fa);border-color:var(--dsw-alias-border-l2,#d0d7de);color:var(--dsw-alias-label-primary,#1f2328);font-weight:600}
-.fs-block{display:flex;flex-direction:column;gap:8px}
-.fs-note{color:var(--dsw-alias-label-secondary,#57606a);font-size:12.5px;margin:0}
-.fs-err{color:#c62828;font-size:12.5px;margin:0}
-.fs-theme-row{display:flex;gap:8px;flex-wrap:wrap}
-.fs-theme-btn{padding:6px 14px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:8px;background:var(--dsw-alias-bg-layer-2,#f6f8fa);cursor:pointer;font-size:12.5px}
-.fs-theme-btn.active{border-color:#2563EB;background:rgba(37,99,235,.08);color:#2563EB;font-weight:600}
-.fs-token-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
-.fs-chips{display:flex;flex-direction:column;gap:5px}
-.fs-chip{display:flex;align-items:center;gap:8px;font-size:12px}
-.fs-swatch{width:18px;height:18px;border-radius:5px;flex:none}
-.fs-chip-label{width:44px;flex:none;color:var(--dsw-alias-label-secondary,#57606a)}
-.fs-chip code{font-family:ui-monospace,Consolas,monospace;font-size:11px;color:var(--dsw-alias-label-secondary,#57606a)}
-.fs-pre{background:var(--dsw-alias-bg-layer-2,#f6f8fa);border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:8px;padding:10px 12px;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all}
-.fs-code{max-height:420px}
+.fs-page{display:flex;flex-direction:column;gap:20px;max-width:860px;font-size:14px;color:var(--dsw-alias-label-primary,#1f2328);line-height:1.7}
+.fs-page h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.fs-page h4{margin:0 0 12px;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.fs-page h4::before{content:"";width:4px;height:16px;border-radius:999px;background:#2563EB;flex:none}
+.fs-page h5{margin:12px 0 8px;font-size:13px;font-weight:600;color:var(--dsw-alias-label-secondary,#57606a)}
+.fs-tabs{display:flex;gap:6px;padding:4px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:12px;background:var(--dsw-alias-bg-layer-2,#f6f8fa);width:max-content}
+.fs-tab{padding:7px 16px;border:1px solid transparent;border-radius:9px;background:none;color:var(--dsw-alias-label-secondary,#57606a);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s ease}
+.fs-tab:hover{color:var(--dsw-alias-label-primary,#1f2328)}
+.fs-tab.active{background:var(--dsw-alias-bg-layer-1,#fff);border-color:var(--dsw-alias-border-l2,#d0d7de);color:var(--dsw-alias-label-primary,#1f2328);font-weight:600;box-shadow:0 1px 2px rgba(31,35,40,.06)}
+.fs-block{padding:20px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:16px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 1px 2px rgba(31,35,40,.04)}
+.fs-note{color:var(--dsw-alias-label-secondary,#57606a);font-size:13px;margin:0}
+.fs-err{color:#c62828;font-size:13px;margin:0;padding:12px 14px;border:1px solid rgba(198,40,40,.25);border-radius:12px;background:rgba(198,40,40,.05)}
+.fs-theme-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.fs-theme-btn{padding:8px 16px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#f6f8fa);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s ease}
+.fs-theme-btn:hover{border-color:#2563EB}
+.fs-theme-btn.active{border-color:#2563EB;background:rgba(37,99,235,.08);color:#2563EB;font-weight:600;box-shadow:0 0 0 1px rgba(37,99,235,.15)}
+.fs-token-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.fs-token-col{display:flex;flex-direction:column;gap:6px;padding:14px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:12px;background:var(--dsw-alias-bg-layer-2,#f6f8fa)}
+.fs-chips{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.fs-chip{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:6px 8px;border-radius:8px;background:var(--dsw-alias-bg-layer-1,#fff)}
+.fs-swatch{width:22px;height:22px;border-radius:7px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.fs-chip-label{width:52px;flex:none;color:var(--dsw-alias-label-secondary,#57606a);font-weight:500}
+.fs-chip code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--dsw-alias-label-secondary,#57606a)}
+.fs-pre{background:var(--dsw-alias-bg-layer-2,#f6f8fa);border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:10px;padding:12px 14px;font-family:ui-monospace,Consolas,monospace;font-size:12px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all;color:var(--dsw-alias-label-primary,#1f2328)}
+.fs-code{max-height:440px}
 .fs-demo .fuse-card{max-width:420px;margin:0 auto}
-`
+`;
 
     function apply(ctx) {
       runtimeCtx = ctx
       loadThemes()
       const disposers = []
 
-      // 设置页注册（biomemory 同款：settings.section slots 注入）
-      disposers.push(ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
-        name: 'settings.section',
-        id: 'fuse-settings',
-        order: 70,
-        label: () => FS_COPY['zh-CN'].title,
-      }, FuseSettingsPage)), 'dsh-fuse: settings'))
+      // 设置页注册（biomemory 同款：settings.section slots 注入；缺失容错，不阻断）
+      try {
+        disposers.push(ctx.effect(() => ctx.slots.inject('settings.section', () => ctx.slots.register({
+          name: 'settings.section',
+          id: 'fuse-settings',
+          order: 70,
+          label: () => FS_COPY['zh-CN'].title,
+        }, FuseSettingsPage)), 'dsh-fuse: settings'))
+      } catch (e) {
+        console.info('[dsh-fuse] 设置页注册跳过（slots 未注入）', e instanceof Error ? e.message : e)
+      }
 
       // Registry channel: host 提供 registerFenceRenderer 时直挂（契约宿主）
-      const primitives = require?.('@deepseek-ai/dsh-client-ui-primitives') ?? {}
-      const registerFn = primitives.registerFenceRenderer
+      let primitives = null
+      try { primitives = require('@deepseek-ai/dsh-client-ui-primitives') ?? {} } catch (e) { primitives = null }
+      const registerFn = primitives?.registerFenceRenderer
       if (typeof registerFn === 'function') {
-        disposers.push(registerFn(FENCE_LANG, (raw, key, context) => {
-          // 返回 ReactNode 需要 React——零依赖下用轻量桥：若 React 可用则用，
-          // 否则降级 DOM 通道。契约宿主场景通常也有 React；这里保持简单：
-          return renderFenceCard(ctx, `fence:${String(key)}`, raw, () => {}).card
-        }))
-        console.info('[dsh-fuse] fence-registry 通道已挂载')
+        try {
+          disposers.push(registerFn(FENCE_LANG, (raw, key, context) => {
+            // 返回 ReactNode 需要 React——零依赖下用轻量桥：若 React 可用则用，
+            // 否则降级 DOM 通道。契约宿主场景通常也有 React；这里保持简单：
+            return renderFenceCard(ctx, `fence:${String(key)}`, raw, () => {}).card
+          }))
+          console.info('[dsh-fuse] fence-registry 通道已挂载')
+        } catch (e) {
+          console.info('[dsh-fuse] registry 挂载失败，回退 DOM 通道', e instanceof Error ? e.message : e)
+          disposers.push(installDomFenceRenderer(ctx))
+        }
       } else {
         console.info('[dsh-fuse] fence-registry 扩展点不存在（原版 DSH）——启用 DOM 渲染通道')
         disposers.push(installDomFenceRenderer(ctx))

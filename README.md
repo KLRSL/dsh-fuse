@@ -1,4 +1,4 @@
-# dsh-fuse · Fuse v1.0
+# dsh-fuse · Fuse v1.0.1
 
 **UI 设计 + 代码规范一体化能力插件**（DeepSeek Harness）
 
