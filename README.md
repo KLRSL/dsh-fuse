@@ -1,6 +1,8 @@
-# dsh-fuse · Fuse v1.0.1
+# dsh-fuse · Fuse v1.0.2
 
 **UI 设计 + 代码规范一体化能力插件**（DeepSeek Harness）
+
+> **v1.0.2 (2026-09-03)**：渲染器适配 DSH **0.1.1-rc.2** 前端（渲染容器宽度与输入框对齐 748px 居中）；兼容性：DeepSeek Harness ≥ 0.1.1-rc.2（0.1.2-rc.1 已测）。
 
 Fuse 为 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）提供页面级 UI 产物的生成、渲染与微调能力：以设计令牌（theme.json）与代码规范（code-style.json）为约束，通过 `dsh-fuse` 围栏输出结构化规格，由浏览器端渲染器即时呈现，并支持像素级走查微调与撤销回退。
 

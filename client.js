@@ -749,23 +749,22 @@ window.__ModuleLoader__.load({
         return () => obs.disconnect()
       }
 
-      // 观察对话区新增代码块
-      const observer = new MutationObserver(() => {
+      const mountAll = () => {
         for (const b of findBlocks()) {
+          // 防嵌套双渲染：容器（.md-code-block 等）已接管时，跳过其内部的 pre
+          // （CODE_BLOCK_SELECTORS 同时匹配容器与其中的 pre；先处理容器即标记 PROCESSED）
+          if (b.closest(`[${PROCESSED}]`)) continue
           try { mountOne(b) } catch (err) { console.warn('[dsh-fuse] 渲染失败：', err) }
         }
-      })
+      }
+
+      // 观察对话区新增代码块
+      const observer = new MutationObserver(mountAll)
       observer.observe(document.body, { childList: true, subtree: true })
       // 1s 兜底清扫（历史加载、漏批属性批次）
-      const sweep = setInterval(() => {
-        for (const b of findBlocks()) {
-          try { mountOne(b) } catch (err) { console.warn('[dsh-fuse] 渲染失败：', err) }
-        }
-      }, SWEEP_MS)
+      const sweep = setInterval(mountAll, SWEEP_MS)
       // 初始清扫
-      for (const b of findBlocks()) {
-        try { mountOne(b) } catch (err) { console.warn('[dsh-fuse] 渲染失败：', err) }
-      }
+      mountAll()
       return () => {
         clearInterval(sweep)
         observer.disconnect()
