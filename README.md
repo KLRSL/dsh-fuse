@@ -60,6 +60,12 @@ dsh plugin --profile web add link:./dsh-fuse
 
 完整语法与审美规范见 `SKILL.md`。
 
+## 📜 版本历史
+
+- **v1.0.2 (2026-09-03)**：修复 DOM 通道双重渲染回归（代码块容器与内嵌 `<pre>` 都被接管 → 同一内容渲染两遍、输入框/工具栏翻倍）；元数据（repository/homepage/bugs/keywords）与 README 全量对齐；peerDeps 放宽至 `>=0.1.1-rc.2`。
+- **v1.0.1 (2026-08-28)**：渲染器适配 DSH 0.1.1-rc.2 前端（补 `dsh.client.inject`、DOM 通道"双判"渲染、pre 直接解析）；渲染容器宽度与输入框对齐（748px 居中，全屏不撑满）。
+- **v1.0.0**：初版——ui-aesthetics 技能升级版（设计令牌 + 代码规范 + fence 渲染 + 走查器 + 撤销撤销历史）。
+
 ## 🧪 开发
 
 ```sh

@@ -50,5 +50,24 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-system-prompt": ">=0.1.1-rc.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KLRSL/dsh-fuse.git"
+  },
+  "homepage": "https://github.com/KLRSL/dsh-fuse#readme",
+  "bugs": {
+    "url": "https://github.com/KLRSL/dsh-fuse/issues"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "dsh-plugin",
+    "ui",
+    "fuse",
+    "design-tokens",
+    "code-style",
+    "fence",
+    "renderer"
+  ]
 }
