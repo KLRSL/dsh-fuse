@@ -1,5 +1,11 @@
 {
   "$comment": "Fuse 设计令牌 —— 从 ui-aesthetics 技能规范数值化（配色≤3色 + 4/8px栅格 + 字体阶梯 + 圆角体系）。颜色参考 OpenPencil 设计令牌体系。",
+  "brand": {
+    "$comment": "插件品牌色（功能语义设计语言，单一事实来源）：fuse=蓝紫（UI 设计/渲染）、biomemory=紫粉（记忆/神经）、packer=橙琥珀（打包/迁移）；主/辅/点缀三层，浅深两套；中性色与语义反馈色（success/warning/error）统一取自 themes.default / themes.dark",
+    "fuse": { "primary": "#2563EB", "darkPrimary": "#22D3EE", "secondary": "#8B5CF6", "darkSecondary": "#A78BFA", "accent": "#0EA5E9", "darkAccent": "#22D3EE" },
+    "biomemory": { "primary": "#7C3AED", "darkPrimary": "#A78BFA", "secondary": "#C026D3", "darkSecondary": "#F0ABFC", "accent": "#0EA5E9", "darkAccent": "#22D3EE" },
+    "packer": { "primary": "#EA580C", "darkPrimary": "#FB923C", "secondary": "#F59E0B", "darkSecondary": "#FBBF24", "accent": "#0EA5E9", "darkAccent": "#22D3EE" }
+  },
   "themes": {
     "default": {
       "$comment": "现代极简（ui-aesthetics 默认风格）",

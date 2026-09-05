@@ -47,20 +47,124 @@ window.__ModuleLoader__.load({
     // 走查高亮色阶（文档 §6.2）：黄=已选中 蓝=采集中 紫=修正中 红=失败
     const INSPECT_COLORS = { selected: '#FACC15', collecting: '#3B82F6', fixing: '#8B5CF6', failed: '#EF4444' }
 
-    // ---------- 全局样式（含令牌 CSS 变量占位） ----------
+    // ---------- 全局样式 ----------
+    // 插件自生 UI 令牌（两组分离）：
+    //   --fs-shell-* = 插件壳令牌（预览卡/工具栏/设置页/高亮反馈/画布渐变）——默认
+    //                  浅色（themes.default 同构），深色由 html[data-dsh-theme="dark"]
+    //                  覆盖（值 = themes.dark 令牌，soft/阴影/渐变派生自令牌），
+    //                  与围栏 theme 无关（installShellThemeSync 探测 DSH 主题）；
+    //   --fs-*/--fuse-* = 渲染产物令牌（applyTheme 按围栏主题写入卡片根，不动）。
+    const FS_TOKENS_CSS = `
+:root{
+  /* ---- 壳令牌（浅色 default 语义）---- */
+  --fs-shell-bg:#FFFFFF;
+  --fs-shell-surface:#F5F6F8;
+  --fs-shell-text:#1A1A1A;
+  --fs-shell-muted:#6B7280;
+  --fs-shell-border:#E5E7EB;
+  --fs-shell-primary:#2563EB;
+  --fs-shell-secondary:#8B5CF6;
+  --fs-shell-accent:#0EA5E9;
+  --fs-shell-success:#2E7D32;
+  --fs-shell-warning:#ED6C02;
+  --fs-shell-error:#C62828;
+  --fs-shell-primary-soft:color-mix(in srgb,var(--fs-shell-primary) 8%,transparent);
+  --fs-shell-secondary-soft:color-mix(in srgb,var(--fs-shell-secondary) 10%,transparent);
+  --fs-shell-accent-soft:color-mix(in srgb,var(--fs-shell-accent) 8%,transparent);
+  --fs-shell-success-soft:color-mix(in srgb,var(--fs-shell-success) 12%,transparent);
+  --fs-shell-warning-soft:color-mix(in srgb,var(--fs-shell-warning) 12%,transparent);
+  --fs-shell-error-soft:color-mix(in srgb,var(--fs-shell-error) 10%,transparent);
+  --fs-shell-error-border:color-mix(in srgb,var(--fs-shell-error) 32%,transparent);
+  --fs-shell-shadow-card:0 1px 3px rgba(26,26,26,.08);
+  --fs-shell-shadow-float:0 10px 30px rgba(26,26,26,.14);
+  /* 画布呼吸：中性面 → 极淡主色渐变（壳背景用） */
+  --fs-shell-grad:linear-gradient(180deg,var(--fs-shell-surface),color-mix(in srgb,var(--fs-shell-primary) 3%,var(--fs-shell-surface)));
+  /* ---- 渲染产物令牌（默认 = default 主题；applyTheme 覆盖到卡片根）---- */
+  --fs-primary:#2563EB;
+  --fs-accent:#0EA5E9;
+  --fs-bg:#FFFFFF;
+  --fs-surface:#F5F6F8;
+  --fs-text:#1A1A1A;
+  --fs-muted:#6B7280;
+  --fs-border:#E5E7EB;
+  --fs-success:#2E7D32;
+  --fs-warning:#ED6C02;
+  --fs-error:#C62828;
+  --fs-primary-soft:rgba(37,99,235,.08);
+  --fs-success-soft:rgba(46,125,50,.10);
+  --fs-warning-soft:rgba(237,108,2,.10);
+  --fs-error-soft:rgba(198,40,40,.08);
+  --fs-error-border:rgba(198,40,40,.32);
+  --fs-radius-sm:8px;
+  --fs-radius-md:12px;
+  --fs-radius-lg:16px;
+  --fs-space-xs:4px;
+  --fs-space-sm:8px;
+  --fs-space-md:16px;
+  --fs-space-lg:24px;
+  --fs-space-xl:32px;
+  --fs-fs-caption:12px;
+  --fs-fs-body:14px;
+  --fs-fs-bodylg:16px;
+  --fs-fs-h3:20px;
+  --fs-fs-h2:28px;
+  --fs-fs-h1:36px;
+  --fs-fs-display:48px;
+  --fs-lh-body:1.7;
+  --fs-lh-heading:1.25;
+  --fs-shadow-card:0 1px 3px rgba(26,26,26,.08);
+  --fs-shadow-float:0 10px 30px rgba(26,26,26,.14);
+  --fs-font:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Roboto,sans-serif;
+  /* 走查高亮色阶：黄=已选中 蓝=采集中 紫=修正中 红=失败 */
+  --fs-highlight-selected:#FACC15;
+  --fs-highlight-collecting:#3B82F6;
+  --fs-highlight-fixing:#8B5CF6;
+  --fs-highlight-failed:#EF4444;
+}
+/* 深色壳覆盖：值 = config/theme.json themes.dark 令牌（radius/space/字号不变）；
+   data-dsh-theme 由 installShellThemeSync 按 DSH 主题属性/系统外观实时置位 */
+html[data-dsh-theme="dark"]{
+  --fs-shell-bg:#0F1115;
+  --fs-shell-surface:#1A1D23;
+  --fs-shell-text:#E8EAED;
+  --fs-shell-muted:#9AA0A6;
+  --fs-shell-border:#2A2E37;
+  --fs-shell-primary:#22D3EE;
+  --fs-shell-secondary:#A78BFA;
+  --fs-shell-accent:#22D3EE;
+  --fs-shell-success:#34D399;
+  --fs-shell-warning:#FBBF24;
+  --fs-shell-error:#F87171;
+  --fs-shell-shadow-card:0 1px 3px rgba(0,0,0,.4);
+  --fs-shell-shadow-float:0 10px 30px rgba(0,0,0,.5);
+  /* 走查高亮深色提亮：mix 亮色（--fs-shell-text）增强可读性，色相/语义不变 */
+  --fs-highlight-selected:color-mix(in srgb,#FACC15 76%,var(--fs-shell-text));
+  --fs-highlight-collecting:color-mix(in srgb,#3B82F6 76%,var(--fs-shell-text));
+  --fs-highlight-fixing:color-mix(in srgb,#8B5CF6 76%,var(--fs-shell-text));
+  --fs-highlight-failed:color-mix(in srgb,#EF4444 76%,var(--fs-shell-text));
+}
+`
+
     const CSS = `
 /* 渲染容器宽度与输入框（composer）对齐：DSH 对话内容最大宽度 748px 居中
    （--dsh-chat-content-width 由 conversation 包定义）；全屏时也不撑满 */
 .fuse-root-holder{width:100%;max-width:var(--dsh-chat-content-width,748px);margin-left:auto;margin-right:auto;box-sizing:border-box}
-.fuse-root{position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',Roboto,sans-serif;color:var(--fuse-text,#1A1A1A);line-height:1.7;font-size:14px}
+${FS_TOKENS_CSS}
+/* ===== 插件自生 UI 壳（预览卡容器/工具栏/高亮反馈）=====
+   DSH 官方变量优先（--dsw-alias-*），回落 --fs-shell-*（html[data-dsh-theme="dark"] 深色覆盖） */
+.fuse-root{position:relative;font-family:var(--fs-font);color:var(--dsw-alias-label-primary,var(--fs-shell-text));line-height:var(--fs-lh-body);font-size:var(--fs-fs-body)}
 .fuse-root *{box-sizing:border-box}
-.fuse-card{background:var(--fuse-bg,#fff);border:1px solid var(--fuse-border,#E5E7EB);border-radius:var(--fuse-radius-lg,16px);box-shadow:var(--fuse-shadow-card,0 1px 3px rgba(26,26,26,.08));overflow:hidden}
-.fuse-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:8px 12px;background:var(--fuse-surface,#F5F6F8);border-bottom:1px solid var(--fuse-border,#E5E7EB)}
-.fuse-toolbar button{border:1px solid var(--fuse-border,#E5E7EB);background:#fff;border-radius:8px;padding:3px 10px;font-size:12px;cursor:pointer;color:#55585E}
-.fuse-toolbar button:hover{background:#F2F4F7}
-.fuse-body{padding:20px 24px}
-.fuse-title{font-size:28px;font-weight:600;line-height:1.25;margin:0 0 4px;color:var(--fuse-text,#1A1A1A)}
-.fuse-subtitle{font-size:14px;color:var(--fuse-muted,#6B7280);margin:0 0 20px}
+.fuse-card{background:var(--dsw-alias-bg-layer-1,var(--fs-shell-bg));border:1px solid var(--dsw-alias-border-l2,var(--fs-shell-border));border-radius:var(--fs-radius-lg);box-shadow:var(--fs-shell-shadow-card);overflow:hidden;transition:box-shadow .18s ease,border-color .18s ease}
+.fuse-card:hover{box-shadow:var(--fs-shell-shadow-float)}
+html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(--fs-shell-primary) 30%,var(--fs-shell-border))}
+.fuse-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:var(--fs-space-sm);padding:var(--fs-space-sm) var(--fs-space-md);background:var(--dsw-alias-bg-layer-2,var(--fs-shell-surface));border-bottom:1px solid var(--dsw-alias-border-l1,var(--fs-shell-border))}
+.fuse-toolbar-label{margin-right:auto;font-size:var(--fs-fs-caption);color:var(--dsw-alias-label-secondary,var(--fs-shell-muted))}
+.fuse-toolbar button{display:inline-flex;align-items:center;gap:var(--fs-space-xs);border:1px solid var(--dsw-alias-border-l1,var(--fs-shell-border));background:var(--dsw-alias-bg-layer-1,var(--fs-shell-bg));border-radius:var(--fs-radius-sm);padding:var(--fs-space-xs) var(--fs-space-md);font-size:var(--fs-fs-caption);font-family:inherit;cursor:pointer;color:var(--dsw-alias-label-secondary,var(--fs-shell-muted));transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+.fuse-toolbar button:hover{background:var(--fs-shell-primary-soft);border-color:var(--fs-shell-secondary);color:var(--fs-shell-secondary)}
+/* 画布区：中性面 → 极淡主色渐变（呼吸），留白保持 lg 24px */
+.fuse-body{padding:var(--fs-space-lg);background:var(--fs-shell-grad)}
+.fuse-title{font-size:var(--fs-fs-h2);font-weight:600;line-height:var(--fs-lh-heading);letter-spacing:-.01em;margin:0 0 var(--fs-space-xs);color:var(--dsw-alias-label-primary,var(--fs-shell-text))}
+.fuse-subtitle{font-size:var(--fs-fs-body);color:var(--dsw-alias-label-secondary,var(--fs-shell-muted));margin:0 0 var(--fs-space-lg)}
 .fuse-label{display:block;font-size:12px;font-weight:500;color:var(--fuse-muted,#6B7280);margin-bottom:5px}
 .fuse-input{width:100%;height:42px;padding:0 12px;border:1px solid var(--fuse-border,#E5E7EB);border-radius:var(--fuse-radius-sm,8px);font-size:14px;background:#fff;color:var(--fuse-text,#1A1A1A);margin-bottom:14px}
 .fuse-input:focus{outline:2px solid var(--fuse-primary,#2563EB);outline-offset:-1px;border-color:transparent}
@@ -118,13 +222,13 @@ window.__ModuleLoader__.load({
 .fuse-chart{display:flex;align-items:flex-end;gap:10px;height:140px;padding:10px 0 0}
 .fuse-chart .bar{flex:1;background:var(--fuse-primary,#2563EB);border-radius:6px 6px 0 0;min-height:4px;position:relative}
 .fuse-chart .bar span{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);font-size:11px;color:var(--fuse-muted,#6B7280)}
-.fuse-error{margin:0 0 8px;padding:6px 10px;border-radius:6px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.4);color:#f87171;font-size:12px;line-height:1.55;white-space:pre-wrap}
-.fuse-empty{padding:6px 10px;border-radius:6px;background:rgba(37,99,235,.08);border:1px dashed var(--fuse-primary,#2563EB);color:var(--fuse-muted,#6B7280);font-size:12px}
-/* 走查高亮 */
-.fuse-inspect{outline:2px solid #FACC15;outline-offset:2px;cursor:crosshair}
-.fuse-inspect.collecting{outline-color:#3B82F6}
-.fuse-inspect.fixing{outline-color:#8B5CF6}
-.fuse-inspect.failed{outline-color:#EF4444}
+.fuse-error{margin:0 0 var(--fs-space-sm);padding:var(--fs-space-sm);border-radius:var(--fs-radius-sm);background:var(--fs-shell-error-soft);border:1px solid var(--fs-shell-error-border);color:var(--dsw-alias-state-error-primary,var(--fs-shell-error));font-size:var(--fs-fs-caption);line-height:1.55;white-space:pre-wrap}
+.fuse-empty{padding:var(--fs-space-xs) var(--fs-space-sm);border-radius:var(--fs-radius-sm);background:var(--fs-shell-primary-soft);border:1px dashed var(--fs-shell-primary);color:var(--dsw-alias-label-secondary,var(--fs-shell-muted));font-size:var(--fs-fs-caption)}
+/* 走查高亮（黄 → 蓝 → 紫 → 红） */
+.fuse-inspect{outline:2px solid var(--fs-highlight-selected);outline-offset:2px;cursor:crosshair}
+.fuse-inspect.collecting{outline-color:var(--fs-highlight-collecting)}
+.fuse-inspect.fixing{outline-color:var(--fs-highlight-fixing)}
+.fuse-inspect.failed{outline-color:var(--fs-highlight-failed)}
 `
 
     // ---------- 工具 ----------
@@ -195,7 +299,8 @@ window.__ModuleLoader__.load({
       return THEMES
     }
 
-    /** 应用主题令牌为 CSS 变量（--fuse-*） */
+    /** 应用主题令牌为 CSS 变量（--fuse-* 与 --fs-* 供渲染产物，随围栏 theme 覆盖卡片根；
+        --fs-shell-* 为插件壳专用，不作为围栏 theme 覆盖对象，由 installShellThemeSync 管理） */
     function applyTheme(root, themeName) {
       const theme = (THEMES && THEMES[themeName]) || (THEMES && THEMES.default) || null
       if (!theme) return
@@ -204,6 +309,7 @@ window.__ModuleLoader__.load({
       const s = theme.spacing ?? {}
       const r = theme.radius ?? {}
       const t = theme.typography ?? {}
+      const fb = theme.feedback ?? {}
       set('--fuse-primary', c.primary)
       set('--fuse-accent', c.accent)
       set('--fuse-bg', c.neutralBg)
@@ -211,14 +317,97 @@ window.__ModuleLoader__.load({
       set('--fuse-text', c.neutralText)
       set('--fuse-muted', c.neutralTextMuted)
       set('--fuse-border', c.border)
-      set('--fuse-success', theme.feedback?.success)
-      set('--fuse-warning', theme.feedback?.warning)
-      set('--fuse-error', theme.feedback?.error)
+      set('--fuse-success', fb.success)
+      set('--fuse-warning', fb.warning)
+      set('--fuse-error', fb.error)
       set('--fuse-radius-sm', r.sm !== undefined ? r.sm + 'px' : undefined)
       set('--fuse-radius-md', r.md !== undefined ? r.md + 'px' : undefined)
       set('--fuse-radius-lg', r.lg !== undefined ? r.lg + 'px' : undefined)
       if (s.md !== undefined) set('--fuse-gap', s.md + 'px')
       if (t.fontFamily) root.style.setProperty('--fuse-font', t.fontFamily)
+      // 渲染产物壳外令牌（--fs-* 尺寸/圆角/字体 + 产物标题色）：值随规格主题覆盖；
+      // 注意：插件壳专用令牌 --fs-shell-* 不在此覆盖（跟随 DSH 主题，见 installShellThemeSync）
+      set('--fs-primary', c.primary)
+      set('--fs-accent', c.accent)
+      set('--fs-bg', c.neutralBg)
+      set('--fs-surface', c.neutralSurface)
+      set('--fs-text', c.neutralText)
+      set('--fs-muted', c.neutralTextMuted)
+      set('--fs-border', c.border)
+      set('--fs-success', fb.success)
+      set('--fs-warning', fb.warning)
+      set('--fs-error', fb.error)
+      set('--fs-radius-sm', r.sm !== undefined ? r.sm + 'px' : undefined)
+      set('--fs-radius-md', r.md !== undefined ? r.md + 'px' : undefined)
+      set('--fs-radius-lg', r.lg !== undefined ? r.lg + 'px' : undefined)
+      const px = (v) => (v !== undefined && v !== null ? v + 'px' : undefined)
+      set('--fs-space-xs', px(s.xs))
+      set('--fs-space-sm', px(s.sm))
+      set('--fs-space-md', px(s.md))
+      set('--fs-space-lg', px(s.lg))
+      set('--fs-space-xl', px(s.xl))
+      const sz = t.sizes ?? {}
+      set('--fs-fs-caption', px(sz.caption))
+      set('--fs-fs-body', px(sz.body))
+      set('--fs-fs-bodylg', px(sz.bodyLg))
+      set('--fs-fs-h3', px(sz.h3))
+      set('--fs-fs-h2', px(sz.h2))
+      set('--fs-fs-h1', px(sz.h1))
+      set('--fs-fs-display', px(sz.display))
+      const lh = t.lineHeights ?? {}
+      const lineH = (v) => (v !== undefined && v !== null ? String(v) : undefined)
+      set('--fs-lh-body', lineH(lh.body))
+      set('--fs-lh-heading', lineH(lh.heading))
+      const sh = theme.shadow ?? {}
+      set('--fs-shadow-card', sh.card)
+      set('--fs-shadow-float', sh.float)
+      if (t.fontFamily) root.style.setProperty('--fs-font', t.fontFamily)
+    }
+
+    // ---------- 壳主题探测（--fs-shell-* 双通道；壳跟随 DSH 主题而非围栏 theme） ----------
+    // 通道1: DSH 运行时以布尔属性写 body[data-ds-dark-theme]（toggleAttribute，存在即暗色），
+    //        兼容显式值 "dark"/"light"（html/body 任一命中）；通道2: prefers-color-scheme 兜底。
+    // 结果同步为 documentElement 的 data-dsh-theme（作用于整页壳），监听变化实时更新；
+    // 多实例同源写入幂等：observer 各管各的，值一致，互不干扰。
+    function detectShellDark() {
+      for (const el of [document.body, document.documentElement]) {
+        if (el && el.hasAttribute('data-ds-dark-theme')) {
+          return el.getAttribute('data-ds-dark-theme') !== 'light'
+        }
+      }
+      try {
+        return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      } catch { return false }
+    }
+
+    function syncShellThemeAttr() {
+      const root = document.documentElement
+      if (detectShellDark()) root.setAttribute('data-dsh-theme', 'dark')
+      else root.removeAttribute('data-dsh-theme')
+    }
+
+    function installShellThemeSync() {
+      syncShellThemeAttr()
+      let obs = null
+      if (typeof MutationObserver !== 'undefined') {
+        // 观察整页 data-ds-dark-theme（body 挂载前也能命中 html 根）
+        obs = new MutationObserver(syncShellThemeAttr)
+        obs.observe(document.documentElement, {
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['data-ds-dark-theme'],
+        })
+      }
+      let mq = null
+      const onMq = () => syncShellThemeAttr()
+      try {
+        mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)')
+        if (mq) mq.addEventListener('change', onMq)
+      } catch { mq = null }
+      return () => {
+        if (obs) obs.disconnect()
+        if (mq && mq.removeEventListener) mq.removeEventListener('change', onMq)
+      }
     }
 
     // ---------- 组件渲染（JSON → DOM，白名单） ----------
@@ -593,6 +782,19 @@ window.__ModuleLoader__.load({
           styleTarget.classList.add('fuse-inspect', 'failed')
           return
         }
+        // 渲染状态（observed：规格合法 ≠ 渲染正确，随走查回传供 expected→observed→diff→fix）
+        const crect = container.getBoundingClientRect()
+        const erect = styleTarget.getBoundingClientRect()
+        const overflowX = container.scrollWidth > container.clientWidth + 1
+        const overflowY = container.scrollHeight > container.clientHeight + 1
+        const clipped = erect.left < crect.left - 1 || erect.right > crect.right + 1 || erect.top < crect.top - 1 || erect.bottom > crect.bottom + 1
+        styles.renderState = {
+          viewport: { width: Math.round(crect.width), height: Math.round(crect.height) },
+          overflow: overflowX || overflowY ? { x: overflowX, y: overflowY } : false,
+          clipped,
+          primaryButtonCount: container.querySelectorAll('.fuse-btn.primary').length,
+          rect: { left: Math.round(erect.left - crect.left), top: Math.round(erect.top - crect.top), width: Math.round(erect.width), height: Math.round(erect.height) },
+        }
         styleTarget.classList.add('collecting')
         // 回传 Agent（[fuse-inspect] + 样式数据）→ 模型定位问题 → 重新渲染
         sendInspect(ctx, fenceKey, key, styles)
@@ -614,7 +816,7 @@ window.__ModuleLoader__.load({
       const sessionId = ctx?.sessions?.current?.()
       const conversation = sessionId ? ctx.sessions.scope(sessionId)?.get?.('conversation') : undefined
       const payload = JSON.stringify({ element: elementKey, ...styles })
-      const msg = `[fuse-inspect] 用户在 Fuse 预览中点击了元素 "${elementKey}"（fence ${fenceKey}）。\n走查器采集到的样式数据: ${payload}\n请根据样式数据分析 UI 问题（间距/圆角/配色/字号/布局），输出修正后的完整 dsh-fuse 围栏重新渲染，不要解释过程。`
+      const msg = `[fuse-inspect] 用户在 Fuse 预览中点击了元素 "${elementKey}"（fence ${fenceKey}）。\n走查器采集到的样式数据与渲染状态: ${payload}\n注意：validate_fuse_spec 通过只代表规格合法（Spec valid），渲染状态是实际结果（Render correct），二者可能不一致。修正流程：expected（你的规格意图）→ observed（上述数据）→ diff（间距/圆角/配色/字号/溢出/主按钮重复）→ fix（输出修正后的完整 dsh-fuse 围栏重新渲染，不要解释过程）。`
       if (conversation?.send) {
         conversation.send(msg).catch(() => { /* 会话结束则丢弃 */ })
       } else {
@@ -650,12 +852,13 @@ window.__ModuleLoader__.load({
       const spec = parseSpec(raw)
       const errors = spec ? validateSpec(spec) : ['JSON 解析失败']
       const card = el('div', 'fuse-root fuse-card')
-      // 工具栏：🔄 刷新预览 / ↩️ 撤销
+      // 工具栏：Fuse 预览标识 + 🔄 刷新预览 / ↩️ 撤销
       const toolbar = el('div', 'fuse-toolbar')
+      const label = el('span', 'fuse-toolbar-label', `Fuse 预览 · ${spec?.theme ?? 'default'}`)
       const undoBtn = el('button', null, '↩️ 撤销')
       undoBtn.title = '回退到上一次微调前的状态（最近 10 次快照）'
       const refreshBtn = el('button', null, '🔄 刷新预览')
-      toolbar.append(undoBtn, refreshBtn)
+      toolbar.append(label, undoBtn, refreshBtn)
       card.appendChild(toolbar)
       const body = el('div', 'fuse-body')
       card.appendChild(body)
@@ -796,12 +999,14 @@ window.__ModuleLoader__.load({
     const FS_COPY = {
       'zh-CN': {
         title: 'Fuse · UI 设计',
+        subtitle: '页面级 UI 渲染插件：设计令牌（theme.json）与代码规范（code-style.json）配置',
         loading: '正在读取配置…',
         unavailable: '暂时无法读取 Fuse 配置（/api/fuse/config），渲染器不受影响。',
         tabTokens: '设计令牌',
         tabCode: '代码规范',
         tabDemo: '实时示例',
         theme: '主题',
+        themeNote: '切换主题可预览对应令牌值；渲染产物按围栏 theme 字段自动应用。',
         colors: '配色',
         spacing: '间距栅格',
         radius: '圆角',
@@ -883,23 +1088,35 @@ window.__ModuleLoader__.load({
         onClick: () => setTab(id),
       }, label)
 
+      // 主题按钮三色 preview 圆点（主色/底/边框；数据驱动，零硬编码色值）
+      const themeDots = (name) => {
+        const c = (cfg.themes?.[name] ?? {}).colors ?? {}
+        return {
+          '--fs-t-primary': c.primary || 'transparent',
+          '--fs-t-bg': c.neutralBg || 'transparent',
+          '--fs-t-border': c.border || 'transparent',
+        }
+      }
+
       // 色板块
       const colorChip = (label, value, key) => {
         if (value === undefined || value === null) return null
-        return h('div', { className: 'fs-chip', key }, [
-          h('span', { className: 'fs-swatch', style: { background: value, border: '1px solid rgba(128,128,128,.25)' } }),
-          h('span', { className: 'fs-chip-label' }, label),
-          h('code', null, String(value)),
+        return h('div', { className: 'fs-chip fs-chip-' + String(key).replace(/^key-/, ''), key }, [
+          h('span', { key: 'swatch', className: 'fs-swatch', style: { background: value } }),
+          h('span', { key: 'label', className: 'fs-chip-label' }, label),
+          h('code', { key: 'value' }, String(value)),
         ])
       }
 
       // Tab 1：设计令牌
-      const tokensSection = h('div', { className: 'fs-block' }, [
+      const tokensSection = h('div', { key: 'tokens', className: 'fs-block' }, [
         h('h4', { key: 'h-theme' }, t.theme),
+        h('p', { key: 'theme-note', className: 'fs-note' }, t.themeNote),
         h('div', { key: 'theme-row', className: 'fs-theme-row' }, themeNames.map((name) => h('button', {
           key: name,
           className: 'fs-theme-btn' + (name === themeName ? ' active' : ''),
           onClick: () => setThemeName(name),
+          style: themeDots(name),
         }, name))),
         theme ? h('div', { key: 'token-grid', className: 'fs-token-grid' }, [
           h('div', { key: 'col-colors', className: 'fs-token-col' }, [
@@ -930,56 +1147,103 @@ window.__ModuleLoader__.load({
         ]) : null,
       ])
 
-      // Tab 2：代码规范
-      const codeSection = h('div', { className: 'fs-block' }, [
+      // Tab 2：代码规范（速览自审清单 + 完整 JSON）
+      const cs = cfg.codeStyle ?? {}
+      const quick = [
+        cs.naming?.components ? `组件命名 ${cs.naming.components}` : null,
+        cs.formatting?.indentSize ? `缩进 ${cs.formatting.indentSize} 空格` : null,
+        cs.formatting?.quoteStyle ? `引号 ${cs.formatting.quoteStyle}` : null,
+        cs.formatting?.semicolons ? '统一分号' : null,
+        cs.syntax?.preferConst ? 'const 优先' : null,
+        cs.syntax?.typescriptStrict ? 'TS strict' : null,
+        cs.css?.colorUsage ? 'CSS 只取设计令牌' : null,
+      ].filter(Boolean)
+      const codeSection = h('div', { key: 'code', className: 'fs-block' }, [
         h('p', { key: 'note', className: 'fs-note' }, t.codeNote),
-        h('pre', { key: 'code', className: 'fs-pre fs-code' }, JSON.stringify(cfg.codeStyle ?? {}, null, 2)),
+        quick.length > 0 ? h('div', { key: 'quick', className: 'fs-quick' },
+          quick.map((q, i) => h('span', { key: 'q' + i, className: 'fs-quick-item' }, q))) : null,
+        h('pre', { key: 'code-json', className: 'fs-pre fs-code' }, JSON.stringify(cfg.codeStyle ?? {}, null, 2)),
       ])
 
-      // Tab 3：实时示例
-      const demoSection = h('div', { className: 'fs-block' }, [
+      // Tab 3：实时示例（标注当前主题语义，浅色/深色）
+      const demoSection = h('div', { key: 'demo', className: 'fs-block' }, [
         h('p', { key: 'note', className: 'fs-note' }, t.demoNote),
-        h('div', { key: 'demo', ref: demoRef, className: 'fs-demo' }),
+        h('div', { key: 'demo-body', ref: demoRef, className: 'fs-demo fs-demo-' + themeName }),
       ])
 
-      const body = cfg.kind === 'loading' ? h('div', { className: 'fs-note' }, t.loading)
-        : cfg.kind === 'error' ? h('div', { className: 'fs-err' }, t.unavailable)
+      const body = cfg.kind === 'loading' ? h('div', { key: 'loading', className: 'fs-note' }, t.loading)
+        : cfg.kind === 'error' ? h('div', { key: 'err', className: 'fs-err' }, t.unavailable)
         : tab === 'tokens' ? tokensSection : tab === 'code' ? codeSection : demoSection
 
       return h('div', { className: 'fs-page' }, [
-        h('style', null, FS_STYLES),
-        h('h3', null, t.title),
-        h('div', { className: 'fs-tabs' }, [tabBtn('tokens', t.tabTokens), tabBtn('code', t.tabCode), tabBtn('demo', t.tabDemo)]),
+        h('style', { key: 'styles' }, FS_STYLES),
+        h('div', { key: 'header', className: 'fs-header' }, [
+          h('h3', { key: 'title' }, t.title),
+          h('p', { key: 'subtitle', className: 'fs-subtitle' }, t.subtitle),
+        ]),
+        h('div', { key: 'tabs', className: 'fs-tabs' }, [tabBtn('tokens', t.tabTokens), tabBtn('code', t.tabCode), tabBtn('demo', t.tabDemo)]),
         body,
       ])
     }
 
     const FS_STYLES = `
-.fs-page{display:flex;flex-direction:column;gap:20px;max-width:860px;font-size:14px;color:var(--dsw-alias-label-primary,#1f2328);line-height:1.7}
-.fs-page h3{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
-.fs-page h4{margin:0 0 12px;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
-.fs-page h4::before{content:"";width:4px;height:16px;border-radius:999px;background:#2563EB;flex:none}
-.fs-page h5{margin:12px 0 8px;font-size:13px;font-weight:600;color:var(--dsw-alias-label-secondary,#57606a)}
-.fs-tabs{display:flex;gap:6px;padding:4px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:12px;background:var(--dsw-alias-bg-layer-2,#f6f8fa);width:max-content}
-.fs-tab{padding:7px 16px;border:1px solid transparent;border-radius:9px;background:none;color:var(--dsw-alias-label-secondary,#57606a);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s ease}
-.fs-tab:hover{color:var(--dsw-alias-label-primary,#1f2328)}
-.fs-tab.active{background:var(--dsw-alias-bg-layer-1,#fff);border-color:var(--dsw-alias-border-l2,#d0d7de);color:var(--dsw-alias-label-primary,#1f2328);font-weight:600;box-shadow:0 1px 2px rgba(31,35,40,.06)}
-.fs-block{padding:20px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:16px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 1px 2px rgba(31,35,40,.04)}
-.fs-note{color:var(--dsw-alias-label-secondary,#57606a);font-size:13px;margin:0}
-.fs-err{color:#c62828;font-size:13px;margin:0;padding:12px 14px;border:1px solid rgba(198,40,40,.25);border-radius:12px;background:rgba(198,40,40,.05)}
-.fs-theme-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
-.fs-theme-btn{padding:8px 16px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:10px;background:var(--dsw-alias-bg-layer-2,#f6f8fa);cursor:pointer;font-size:13px;font-weight:500;transition:all .15s ease}
-.fs-theme-btn:hover{border-color:#2563EB}
-.fs-theme-btn.active{border-color:#2563EB;background:rgba(37,99,235,.08);color:#2563EB;font-weight:600;box-shadow:0 0 0 1px rgba(37,99,235,.15)}
-.fs-token-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
-.fs-token-col{display:flex;flex-direction:column;gap:6px;padding:14px;border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:12px;background:var(--dsw-alias-bg-layer-2,#f6f8fa)}
-.fs-chips{display:flex;flex-direction:column;gap:8px;margin-top:4px}
-.fs-chip{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:6px 8px;border-radius:8px;background:var(--dsw-alias-bg-layer-1,#fff)}
-.fs-swatch{width:22px;height:22px;border-radius:7px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
-.fs-chip-label{width:52px;flex:none;color:var(--dsw-alias-label-secondary,#57606a);font-weight:500}
-.fs-chip code{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--dsw-alias-label-secondary,#57606a)}
-.fs-pre{background:var(--dsw-alias-bg-layer-2,#f6f8fa);border:1px solid var(--dsw-alias-border-l2,#d0d7de);border-radius:10px;padding:12px 14px;font-family:ui-monospace,Consolas,monospace;font-size:12px;overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all;color:var(--dsw-alias-label-primary,#1f2328)}
+${FS_TOKENS_CSS}
+/* ===== 设置页（settings.section）：规范工作台 · 分段工具切换 + 卡片式色板 ===== */
+.fs-page{display:flex;flex-direction:column;gap:var(--fs-space-lg);max-width:860px;font-size:var(--fs-fs-body);color:var(--dsw-alias-label-primary,var(--fs-shell-text));line-height:var(--fs-lh-body)}
+.fs-header{display:flex;flex-direction:column;gap:var(--fs-space-xs)}
+.fs-page h3{margin:0;font-size:var(--fs-fs-h3);font-weight:600;letter-spacing:-.01em;line-height:var(--fs-lh-heading)}
+.fs-subtitle{margin:0;font-size:var(--fs-fs-body);color:var(--dsw-alias-label-secondary,var(--fs-shell-muted))}
+.fs-page h4{margin:0 0 var(--fs-space-sm);font-size:var(--fs-fs-bodylg);font-weight:600;display:flex;align-items:center;gap:var(--fs-space-sm);color:var(--dsw-alias-label-primary,var(--fs-shell-text))}
+.fs-page h4::before{content:"";width:4px;height:16px;border-radius:999px;background:linear-gradient(180deg,var(--fs-shell-primary),var(--fs-shell-secondary));flex:none}
+.fs-page h5{margin:var(--fs-space-md) 0 var(--fs-space-sm);font-size:var(--fs-fs-caption);font-weight:600;color:var(--dsw-alias-label-secondary,var(--fs-shell-muted))}
+.fs-tabs{display:flex;gap:var(--fs-space-xs);padding:var(--fs-space-xs);border:1px solid var(--dsw-alias-border-l1,var(--fs-shell-border));border-radius:var(--fs-radius-md);background:var(--dsw-alias-bg-layer-2,var(--fs-shell-surface));width:max-content}
+.fs-tab{padding:var(--fs-space-xs) var(--fs-space-md);border:1px solid transparent;border-radius:calc(var(--fs-radius-sm) - 2px);background:none;color:var(--dsw-alias-label-secondary,var(--fs-shell-muted));cursor:pointer;font-size:var(--fs-fs-caption);font-weight:500;font-family:inherit;transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease}
+.fs-tab:hover{color:var(--dsw-alias-label-primary,var(--fs-shell-text));background:var(--dsw-alias-bg-layer-1,var(--fs-shell-bg))}
+.fs-tab.active{background:var(--dsw-alias-bg-layer-1,var(--fs-shell-bg));border-color:var(--dsw-alias-border-l2,var(--fs-shell-border));color:var(--fs-shell-primary);font-weight:600;box-shadow:var(--fs-shell-shadow-card)}
+.fs-block{padding:var(--fs-space-lg);border:1px solid var(--dsw-alias-border-l2,var(--fs-shell-border));border-radius:var(--fs-radius-lg);background:var(--dsw-alias-bg-layer-1,var(--fs-shell-bg));box-shadow:var(--fs-shell-shadow-card)}
+.fs-note{color:var(--dsw-alias-label-secondary,var(--fs-shell-muted));font-size:var(--fs-fs-caption);margin:0}
+.fs-err{color:var(--dsw-alias-state-error-primary,var(--fs-shell-error));font-size:var(--fs-fs-caption);margin:0;padding:var(--fs-space-md);border:1px solid var(--fs-shell-error-border);border-radius:var(--fs-radius-md);background:var(--fs-shell-error-soft)}
+.fs-theme-row{display:flex;gap:var(--fs-space-sm);flex-wrap:wrap;margin:var(--fs-space-sm) 0 var(--fs-space-md)}
+.fs-theme-btn{display:inline-flex;align-items:center;gap:var(--fs-space-sm);padding:var(--fs-space-sm) var(--fs-space-md);border:1px solid var(--dsw-alias-border-l1,var(--fs-shell-border));border-radius:var(--fs-radius-sm);background:var(--dsw-alias-bg-layer-2,var(--fs-shell-surface));cursor:pointer;font-size:var(--fs-fs-caption);font-weight:500;font-family:inherit;color:var(--dsw-alias-label-primary,var(--fs-shell-text));transition:border-color .15s ease,background-color .15s ease,color .15s ease}
+.fs-theme-btn::before{content:"";width:18px;height:8px;flex:none;background:
+  radial-gradient(circle at 3px 4px,var(--fs-t-primary,transparent) 0 2.5px,transparent 3px),
+  radial-gradient(circle at 9px 4px,var(--fs-t-bg,transparent) 0 2.5px,transparent 3px),
+  radial-gradient(circle at 15px 4px,var(--fs-t-border,transparent) 0 2.5px,transparent 3px),
+  radial-gradient(circle at 3px 4px,var(--dsw-alias-border-l1,var(--fs-shell-border)) 0 3.5px,transparent 4px),
+  radial-gradient(circle at 9px 4px,var(--dsw-alias-border-l1,var(--fs-shell-border)) 0 3.5px,transparent 4px),
+  radial-gradient(circle at 15px 4px,var(--dsw-alias-border-l1,var(--fs-shell-border)) 0 3.5px,transparent 4px)}
+.fs-theme-btn:hover{border-color:var(--fs-shell-secondary);background:var(--fs-shell-secondary-soft)}
+.fs-theme-btn.active{border-color:var(--fs-shell-primary);background:var(--fs-shell-primary-soft);color:var(--fs-shell-primary);font-weight:600;box-shadow:0 0 0 1px var(--fs-shell-primary-soft)}
+.fs-token-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--fs-space-md)}
+.fs-token-col{display:flex;flex-direction:column;gap:var(--fs-space-sm);padding:var(--fs-space-md);border:1px solid var(--dsw-alias-border-l1,var(--fs-shell-border));border-radius:var(--fs-radius-md);background:var(--dsw-alias-bg-layer-2,var(--fs-shell-surface))}
+.fs-chips{display:flex;flex-direction:column;gap:var(--fs-space-sm);margin-top:var(--fs-space-xs)}
+.fs-chip{display:flex;align-items:center;gap:var(--fs-space-sm);font-size:var(--fs-fs-caption);padding:var(--fs-space-sm);border-radius:var(--fs-radius-sm);background:var(--dsw-alias-bg-layer-1,var(--fs-shell-bg))}
+.fs-chip::after{content:"";margin-left:auto;color:var(--dsw-alias-label-tertiary,var(--fs-shell-muted))}
+.fs-chip-primary::after{content:"品牌主色 · 主操作/焦点"}
+.fs-chip-accent::after{content:"强调色 · 渐变/点缀"}
+.fs-chip-bg::after{content:"页面背景"}
+.fs-chip-surface::after{content:"卡片表面"}
+.fs-chip-text::after{content:"正文文字"}
+.fs-chip-muted::after{content:"弱化说明"}
+.fs-chip-border::after{content:"分隔边框"}
+.fs-chip-success::after{content:"成功反馈"}
+.fs-chip-warning::after{content:"警告反馈"}
+.fs-chip-error::after{content:"错误反馈"}
+.fs-chip-label{width:52px;flex:none;color:var(--dsw-alias-label-secondary,var(--fs-shell-muted));font-weight:500}
+.fs-swatch{width:22px;height:22px;border-radius:var(--fs-radius-sm);flex:none;box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l1,var(--fs-shell-border))}
+.fs-chip code{font-family:ui-monospace,Consolas,monospace;font-size:var(--fs-fs-caption);color:var(--dsw-alias-label-secondary,var(--fs-shell-muted))}
+.fs-pre{background:var(--dsw-alias-bg-layer-2,var(--fs-shell-surface));border:1px solid var(--dsw-alias-border-l1,var(--fs-shell-border));border-radius:var(--fs-radius-sm);padding:var(--fs-space-md);font-family:ui-monospace,Consolas,monospace;font-size:var(--fs-fs-caption);overflow:auto;margin:0;white-space:pre-wrap;word-break:break-all;color:var(--dsw-alias-label-primary,var(--fs-shell-text))}
 .fs-code{max-height:440px}
+/* 代码规范速览 · 自审清单（数据驱动，随 code-style.json 渲染） */
+.fs-quick{display:flex;flex-wrap:wrap;gap:var(--fs-space-sm);margin:0 0 var(--fs-space-md)}
+.fs-quick-item{display:inline-flex;align-items:center;gap:var(--fs-space-xs);padding:var(--fs-space-xs) var(--fs-space-sm);border-radius:999px;border:1px solid var(--dsw-alias-border-l1,var(--fs-shell-border));background:var(--dsw-alias-bg-layer-2,var(--fs-shell-surface));color:var(--dsw-alias-label-secondary,var(--fs-shell-muted));font-size:var(--fs-fs-caption)}
+.fs-quick-item::before{content:"✓";color:var(--fs-shell-success)}
+/* 实时示例：标注当前主题语义（浅色/深色） */
+.fs-demo{padding:var(--fs-space-md);background:var(--dsw-alias-bg-layer-2,var(--fs-shell-surface));border-radius:var(--fs-radius-sm)}
+.fs-demo::after{display:block;margin-top:var(--fs-space-sm);font-size:var(--fs-fs-caption);color:var(--dsw-alias-label-secondary,var(--fs-shell-muted))}
+.fs-demo-default::after{content:"默认主题 · 浅色语义"}
+.fs-demo-apple::after{content:"苹果风格 · 浅色语义"}
+.fs-demo-dark::after{content:"暗黑科技 · 深色语义"}
 .fs-demo .fuse-card{max-width:420px;margin:0 auto}
 `;
 
@@ -987,6 +1251,8 @@ window.__ModuleLoader__.load({
       runtimeCtx = ctx
       loadThemes()
       const disposers = []
+      // 壳主题同步（--fs-shell-* 跟随 DSH 主题，与围栏 theme 解耦）
+      disposers.push(installShellThemeSync())
 
       // 设置页注册（biomemory 同款：settings.section slots 注入；缺失容错，不阻断）
       try {

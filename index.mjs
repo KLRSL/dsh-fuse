@@ -111,6 +111,14 @@ export const FUSE_SECTION_TEXT = `## Fuse — 页面级 UI 生成规范（dsh-fu
 在回答正文中用 dsh-fuse 围栏输出 JSON 规格，渲染器会渲染成真实页面 UI。这是页面级组件体系，
 与 dsh-ui（对话内小卡片）互补——页面类产物一律用 dsh-fuse。
 
+### 设计原则（骨架 → 血肉 → 呼吸）
+- 骨架=规则：页面类型/布局/层级清晰可循；血肉=语义：内容与交互详实具体，无占位壳；
+  呼吸=情绪：留白、动效、低饱和色调保持克制。顺序不许倒：先骨架再血肉后呼吸。
+- 适配四问（写规格前回答，结论写入根节点 context 字段）：①产品是什么（网页/APP/车载/穿戴/大屏）
+  ②给谁用（受众/场景）③核心任务（每屏一个焦点）④媒介约束（响应式/触控/视觉距离）。
+- 风格扩展：theme 是风格基调（default/apple/dark）；可爱风/黑暗风等新风格=theme.json 新增主题
+  （复用 4/8px 栅格与字号阶梯，配色仍守 ≤3 色+中性色），不推翻骨架与呼吸规则。
+
 ### 页面类型（根 type，必须取其一）
 ${FUSE_PAGE_KINDS.join(' / ')}
 
@@ -120,7 +128,8 @@ ${FUSE_COMPONENT_TYPES.join(' ')}
 ### 结构
 {"type":"<页面类型>","title":"页面标题","theme":"default","components":[...]}
 - components 内每个元素必须有合法 type；未知 type 整体拒绝渲染
-- 根节点可加 "actions":[{"action":"name","label":"按钮文字","tone":"primary|ghost"}] 放页面主操作
+- 根节点可加 "context":{"product":"<网页|APP|…>","audience":"<受众>","task":"<核心任务>"}（可选，推荐）：
+  声明产品上下文；也可加 "actions":[{"action":"name","label":"按钮文字","tone":"primary|ghost"}] 放页面主操作
 - 交互组件（button/input/select/checkbox/radio）带 "action":"name" 时，点击后以 [fuse-action] 回传；
   不带 action 的按钮渲染为禁用态
 - 表单类页面：input/select/textarea 用 label 字段标注，按钮 style="primary" 为主操作（每页只有一个主操作）
@@ -131,9 +140,11 @@ ${summarizeTheme()}
 ### 代码规范（code-style.json，Fuse 生成配套代码时必守）
 ${summarizeCodeStyle()}
 
-### 走查微调
-用户点击预览中某个元素后，会收到 [fuse-inspect] + 该元素的 getComputedStyle 样式数据。
-根据样式数据定位问题（间距/圆角/配色/字号），输出修正后的完整 dsh-fuse 围栏重新渲染，
+### 走查微调（Spec valid ≠ Render correct）
+用户点击预览中某个元素后，会收到 [fuse-inspect] + 该元素的 getComputedStyle 样式数据
+与渲染状态（viewport/overflow/clipped/primaryButtonCount）。validate_fuse_spec 通过只代表规格合法，
+不等于渲染正确；修正流程为 expected（规格意图）→ observed（样式数据+渲染状态）→ diff → fix：
+根据差异定位问题（间距/圆角/配色/字号/溢出/主按钮重复），输出修正后的完整 dsh-fuse 围栏重新渲染，
 不要解释过程。预览卡右上角提供 ↩️ 撤销（最近 10 次快照）。`
 
 // ---------- 预检工具：validate_fuse_spec ----------
@@ -184,6 +195,10 @@ export function validateFuseSpec(spec) {
   }
   if (spec.theme !== undefined && !(themeConfig?.themes ?? {})[spec.theme]) {
     errors.push(`未知主题 "${spec.theme}"，可选：${Object.keys(themeConfig?.themes ?? {}).join(' / ')}`)
+  }
+  // 产品上下文（可选）：声明产品/受众/任务，仅允许对象形态，字段不强制
+  if (spec.context !== undefined && (spec.context === null || typeof spec.context !== 'object' || Array.isArray(spec.context))) {
+    errors.push('context 必须是对象（product/audience/task 之一或多个）')
   }
   const comps = spec.components
   if (!Array.isArray(comps)) {

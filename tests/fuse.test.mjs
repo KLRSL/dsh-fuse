@@ -38,6 +38,13 @@ test('未知主题被拒绝', () => {
   assert.ok(errs.some((e) => e.includes('未知主题')))
 })
 
+test('context 产品上下文：合法对象通过，非法形态被拒绝', () => {
+  const ok = { type: 'dashboard', context: { product: '网页', audience: '个人用户', task: '查看数据' }, components: [{ type: 'text', content: 'x' }] }
+  assert.deepEqual(validateFuseSpec(ok), [])
+  const bad = { type: 'dashboard', context: 'web', components: [{ type: 'text', content: 'x' }] }
+  assert.ok(validateFuseSpec(bad).some((e) => e.includes('context')))
+})
+
 test('components 缺失/为空被拒绝', () => {
   assert.ok(validateFuseSpec({ type: 'form' }).some((e) => e.includes('components')))
   assert.ok(validateFuseSpec({ type: 'form', components: [] }).some((e) => e.includes('不能为空')))

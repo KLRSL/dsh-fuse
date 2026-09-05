@@ -1,8 +1,8 @@
-# dsh-fuse · Fuse v1.0.2
+# dsh-fuse · Fuse v1.2.1
 
 **UI 设计 + 代码规范一体化能力插件**（DeepSeek Harness）
 
-> **v1.0.2 (2026-09-03)**：渲染器适配 DSH **0.1.1-rc.2** 前端（渲染容器宽度与输入框对齐 748px 居中）；兼容性：DeepSeek Harness ≥ 0.1.1-rc.2（0.1.2-rc.1 已测）。
+> **v1.2.0 (2026-09-05)**：插件管理 UI 按「骨架/血肉/呼吸」设计语言重构（预览卡壳/工具栏/设置页全部令牌驱动，--fs-* 变量取自 theme.json，壳随围栏主题切换）；融合「规则是骨架，语义是血肉，情绪是呼吸」设计原则与通用 UI/UX Prompt Framework（适配四问 + context 字段 + 风格扩展）；走查闭环升级为 Spec valid ≠ Render correct（渲染器回传 viewport/overflow/clipped/primaryButtonCount 状态，Agent 走 expected→observed→diff→fix）；兼容性：DeepSeek Harness ≥ 0.1.1-rc.2。
 
 Fuse 为 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）提供页面级 UI 产物的生成、渲染与微调能力：以设计令牌（theme.json）与代码规范（code-style.json）为约束，通过 `dsh-fuse` 围栏输出结构化规格，由浏览器端渲染器即时呈现，并支持像素级走查微调与撤销回退。
 
@@ -12,9 +12,11 @@ Fuse 为 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）提供�
 |---|---|
 | 一键生成 | 自然语言描述 → Agent 输出 `dsh-fuse` 围栏 → 渲染页面 UI |
 | 即时预览 | 渲染于 DSH 对话流内，所见即所得 |
-| 像素级微调 | 点击元素 → 走查器采集 `getComputedStyle` → 回传 Agent 修正重渲染 |
+| 像素级微调 | 点击元素 → 走查器采集 `getComputedStyle` + 渲染状态 → 回传 Agent 修正重渲染 |
+| 渲染状态回传 | viewport / overflow / clipped / primaryButtonCount——Spec valid ≠ Render correct，expected→observed→diff→fix |
 | 撤销 / 历史 | 环形缓冲暂存最近 10 次快照，预览卡支持回退 |
-| 设计令牌 | theme.json 提供 default / apple / dark 三套主题，CSS 变量映射 |
+| 设计令牌 | theme.json 提供 default / apple / dark 三套主题（可扩展新风格主题），CSS 变量映射 |
+| 设计原则 | 骨架（规则）→ 血肉（语义）→ 呼吸（克制）；四问适配（产品/受众/任务/媒介）写入 context 字段 |
 | 代码规范 | 生成代码遵循 code-style.json（命名 / 格式化 / 结构） |
 
 ## 🛠️ 技术架构
@@ -62,6 +64,8 @@ dsh plugin --profile web add link:./dsh-fuse
 
 ## 📜 版本历史
 
+- **v1.2.0 (2026-09-05)**：插件自身 UI 重构——预览卡壳/工具栏/设置页按「骨架/血肉/呼吸」设计语言重做（:root --fs-* 令牌取自 theme.json default；新增页头副标题、工具栏「Fuse 预览 · 主题」标识、走查高亮与主题切换按钮令牌化；清除 dsw-alias 依赖；修复 React key 警告）；类名零变更，全部测试原样通过。
+- **v1.1.0 (2026-09-05)**：融合「规则是骨架，语义是血肉，情绪是呼吸」+ 通用 UI/UX Prompt Framework——适配四问（产品/受众/任务/媒介）、根节点 `context` 字段（validator 校验形态）、风格扩展指南（theme.json 新增主题零改代码）；走查闭环强化：渲染器回传渲染状态（viewport/overflow/clipped/primaryButtonCount），系统指令引导 expected→observed→diff→fix；UI 修改建议落地（diff 自审清单）。
 - **v1.0.2 (2026-09-03)**：修复 DOM 通道双重渲染回归（代码块容器与内嵌 `<pre>` 都被接管 → 同一内容渲染两遍、输入框/工具栏翻倍）；元数据（repository/homepage/bugs/keywords）与 README 全量对齐；peerDeps 放宽至 `>=0.1.1-rc.2`。
 - **v1.0.1 (2026-08-28)**：渲染器适配 DSH 0.1.1-rc.2 前端（补 `dsh.client.inject`、DOM 通道"双判"渲染、pre 直接解析）；渲染容器宽度与输入框对齐（748px 居中，全屏不撑满）。
 - **v1.0.0**：初版——ui-aesthetics 技能升级版（设计令牌 + 代码规范 + fence 渲染 + 走查器 + 撤销撤销历史）。
