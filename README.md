@@ -1,70 +1,72 @@
-# dsh-fuse · Fuse v1.2.1
+# dsh-fuse
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) · DSH `>=0.1.1-rc.2` (adapted for `0.1.2-rc.1`)
+> **页面级 UI 渲染插件**：自然语言描述 → 结构化规格围栏 → 真实页面 UI，并带像素级走查闭环。
+>
+> [简体中文](README.md) · [English](README.en.md)
 
-> Fuse is the plugin upgrade of the **ui-aesthetics** skill: aesthetic rules are
-> crystallized into design tokens (`theme.json`) and code rules into `code-style.json`,
-> so that generated page-level UI is **correct by construction** — and can be
-> refined down to the pixel through a closed-loop inspector.
+> **v1.2.1** · MIT License · DSH ≥ 0.1.1-rc.2（已适配 0.1.2-rc.1）· Node `^22.19.0 || >=24.0.0`
 
-**dsh-fuse** is a [DeepSeek Harness](https://github.com/deepseek-ai/dsh) (DSH) plugin that gives the model one integrated capability: **UI design + code-style enforcement**, in three steps — *generate*, *render*, *refine*.
+dsh-fuse 是 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）插件，也是 **ui-aesthetics 技能的插件化升级版**：把审美规范数值化为设计令牌（`theme.json`）、把代码规约沉淀为 `code-style.json`，让生成的页面级 UI **从构造上就正确**，并通过闭环走查器把细节微调到像素级。
 
-1. **Generate** — the model describes a page in natural language and emits a `dsh-fuse` fence containing a structured JSON spec, validated by `validate_fuse_spec` before it is ever rendered.
-2. **Render** — the browser-side renderer turns the spec into a real page UI, rendered inline in the conversation flow, width-aligned with the composer (`748px` centered).
-3. **Refine** — click any element in the preview to collect `getComputedStyle` + render-state diagnostics, run the `expected → observed → diff → fix` loop, and re-render a corrected fence. A ring buffer holds the last 10 snapshots for undo.
+## 是什么
 
-Design philosophy: **rules are the skeleton, semantics are the flesh, restraint is the breath** (规则是骨架，语义是血肉，情绪是呼吸). Every spec decides its emotional tone through `theme` (default / apple / dark), has no placeholder content, and follows the 4/8px grid.
+模型获得「UI 设计 + 代码规范」一体化能力，三步走：
 
-> **Companion doc:** [README.zh-CN.md](README.zh-CN.md) (简体中文).
+1. **生成** —— 模型用自然语言描述页面，在回答正文中输出 `dsh-fuse` 围栏（结构化 JSON 规格）；输出前经 `validate_fuse_spec` 预检，坏规格先被拦截。
+2. **渲染** —— 浏览器端把规格渲染成真实页面 UI，内联呈现在对话流中；宽度与输入框对齐（居中、748px 上限），全屏也不撑满。
+3. **微调** —— 点击预览内任意元素，采集 `getComputedStyle` + 渲染状态，按 `expected → observed → diff → fix` 闭环修正后重新输出完整围栏；环形缓冲保留最近 10 次快照可供撤销。
 
-## ✨ Core Features
+设计哲学：**规则是骨架，语义是血肉，情绪是呼吸**。每份规格通过 `theme`（default / apple / dark）显式决定情绪基调，拒绝占位壳，间距一律落在 4/8px 栅格上。
 
-| Feature | Description |
-|---|---|
-| One-shot generation | Natural language → agent emits a `dsh-fuse` fence → a real page UI renders |
-| Inline preview | Rendered inside the DSH conversation flow; 748px max-width, centered, aligned with the composer (never full-bleed) |
-| Pixel-level inspection | Click a rendered element → the inspector collects `getComputedStyle` + render state → sends `[fuse-inspect]` back to the model |
-| Render-state telemetry | `viewport` / `overflow` / `clipped` / `primaryButtonCount` — **Spec valid ≠ Render correct** |
-| Expected → observed → diff → fix | Structured refinement loop: compare intent against reality, localize the mismatch, re-emit the full corrected fence |
-| Undo history | Ring buffer of the last 10 snapshots; ↩️ undo in the preview card's top-right corner |
-| Design tokens | `theme.json`: default / apple / dark themes, CSS-variable mapping, pluggable new styles |
-| Design principles | Skeleton → flesh → breath; four-question adaptation (product / audience / task / medium) recorded in the root `context` field |
-| Code-style enforcement | `code-style.json` naming / formatting / syntax / CSS rules for every piece of generated code |
-| Dark-mode ready | Plugin shell follows the DSH theme via dual-channel detection (`body[data-ds-dark-theme]` / `prefers-color-scheme` + `MutationObserver`) |
-| Dual-channel rendering | `registerFenceRenderer` extension point when the host provides one; DOM channel fallback on stock DSH |
+## 功能特性
 
-## 📦 Installation
+| 特性 | 说明 |
+| --- | --- |
+| 一键生成 | 自然语言描述 → Agent 输出 `dsh-fuse` 围栏 → 渲染出真实页面 UI |
+| 内联预览 | 渲染于 DSH 对话流内；748px 居中，与输入框（composer）同宽，全屏不撑满 |
+| 像素级走查 | 点击预览元素 → 采集 `getComputedStyle` + 渲染状态 → `[fuse-inspect]` 回传模型 |
+| 渲染状态回传 | viewport / overflow / clipped / primaryButtonCount —— **Spec valid ≠ Render correct** |
+| 修正闭环 | expected（规格意图）→ observed（实际渲染）→ diff（定位差异）→ fix（重输出完整围栏） |
+| 撤销 / 历史 | 环形缓冲保留最近 10 次快照；预览卡右上角 ↩️ 回退 |
+| 设计令牌 | `theme.json`：default / apple / dark 三套主题，CSS 变量映射，新风格即插即用 |
+| 设计原则 | 骨架 → 血肉 → 呼吸；适配四问（产品/受众/任务/媒介）结论写入根节点 `context` |
+| 代码规范 | 生成配套代码必守 `code-style.json`（命名 / 格式化 / 语法 / CSS） |
+| 双通道渲染 | 宿主提供 `registerFenceRenderer` 扩展点时直挂；原版 DSH 回退 DOM 通道 |
+| 深色模式 | 插件壳跟随 DSH 主题：双通道探测（`body[data-ds-dark-theme]` / `prefers-color-scheme` + MutationObserver） |
 
-### From npm (published)
+## 安装
+
+### 从 GitHub 安装（推荐）
 
 ```bash
-npm install dsh-fuse
+# 需要已安装 git；--profile web 换成你的 profile 名
+dsh plugin --profile web add github:KLRSL/dsh-fuse
 ```
 
-### As a local bundle (development / link)
+### 本地 bundle（开发 / link）
 
 ```bash
-# Add the plugin to a DSH profile as a linked bundle
+# 在项目目录下执行
 dsh plugin --profile web add link:./dsh-fuse
 ```
 
-Register the bundle in the profile's `dsh.profile.bundles` list. Then restart DSH (the HTML client inject is loaded at boot).
+`dsh plugin` 会自动把安装的包登记到 profile 的 `dsh.profile.bundles` 并挂载补丁；安装完成后重启 DSH（HTML 客户端注入在启动时生效）。
 
-### Verify
+### 安装后验证
 
-1. **Host half** — after startup, the log shows `[dsh-fuse] 启动完成：系统指令 + validate_fuse_spec + /api/fuse/config`. The system prompt contains the Fuse section (`name: fuse`, `order: 106`), and the `validate_fuse_spec` tool is registered when the `tools` service is available.
-2. **Client half** — the browser console reports which channel attached:
-   - `[dsh-fuse] fence-registry 通道已挂载` (registry channel, contract host)
-   - `[dsh-fuse] fence-registry 扩展点不存在（原版 DSH）——启用 DOM 渲染通道` (DOM channel)
-3. **Config API** — `GET http://127.0.0.1:<port>/api/fuse/config` returns `{ themes, codeStyle, pageKinds, componentTypes }`.
+1. **宿主半区** —— 启动日志出现 `[dsh-fuse] 启动完成：系统指令 + validate_fuse_spec + /api/fuse/config`；系统提示词包含 Fuse 段（`name: fuse`，`order: 106`）；tools 服务可用时 `validate_fuse_spec` 工具注册成功。
+2. **浏览器半区** —— 控制台报告所用通道：
+   - `[dsh-fuse] fence-registry 通道已挂载`（注册表通道，契约宿主）
+   - `[dsh-fuse] fence-registry 扩展点不存在（原版 DSH）——启用 DOM 渲染通道`（DOM 通道）
+3. **配置 API** —— `GET http://localhost:<端口>/api/fuse/config` 返回 `{ themes, codeStyle, pageKinds, componentTypes }`。
 
-Then ask the model to "make a login page" — a rendered `dsh-fuse` preview card should appear directly in the conversation.
+然后让模型「做一个登录页」——对话流中应直接出现渲染好的 `dsh-fuse` 预览卡。
 
-> **Note on safety:** fences are parsed by a strict whitelist validate → render pipeline. Unknown component types reject the whole spec; the node budget is capped at 60 nodes / depth 8 on the host side and 200 nodes / depth 8 in the renderer.
+> **安全说明：** 围栏走「白名单校验 → 渲染」管道。未知组件 type 整体拒绝渲染；节点预算：宿主侧 60 节点 / 8 层深，渲染器侧 200 节点 / 8 层深。
 
-## 🚀 Quick Start
+## 快速开始
 
-The model emits a `dsh-fuse` fence in the body of its reply:
+模型在回答正文中输出 `dsh-fuse` 围栏：
 
 ````markdown
 ```dsh-fuse
@@ -87,23 +89,23 @@ The model emits a `dsh-fuse` fence in the body of its reply:
 ```
 ````
 
-What happens next:
+接下来会发生什么：
 
-- The **validator** (`validate_fuse_spec`) checks the spec against the whitelist (page kinds, component types, container rules, budgets). Bad specs are rejected before rendering.
-- The **renderer** fetches design tokens from `/api/fuse/config` in the browser, maps the chosen `theme` to CSS variables, and renders a live preview card. The card is `748px` max-width, centered — the same width as the composer.
-- Clicking **登 录** (which carries `"action": "login"`) emits `[fuse-action] login` back to the model, so the conversation can continue the flow (e.g. simulate the login, show an error, navigate).
-- Buttons without an `action` render as **disabled**.
+- **预检** —— `validate_fuse_spec` 按白名单校验（页面类型 / 组件词汇 / 容器规则 / 预算），坏规格在渲染前被拒绝。
+- **渲染** —— 浏览器端从 `/api/fuse/config` 拉取设计令牌，把所选 `theme` 映射为 CSS 变量，渲染实时预览卡；卡片 748px 居中，与输入框同宽。
+- **交互** —— 点击带 `"action": "login"` 的「登 录」按钮，回传 `[fuse-action] login`，对话继续推进流程（模拟登录 / 展示错误 / 跳转等）。
+- **禁用态** —— 不带 `action` 的按钮渲染为禁用态。
 
-> **Page-level vs. card-level:** `dsh-fuse` is the page-level UI system (login pages, dashboards, settings, tables, landing pages, pills, modals, forms). Small in-conversation cards remain the domain of `dsh-ui`. The complete grammar lives in `SKILL.md`.
+> **页面级 vs 卡片级：** dsh-fuse 管页面级 UI（登录页/仪表盘/设置页/表格页/落地页/个人卡片/弹窗/表单），对话内小卡片仍用 dsh-ui。完整语法以 `SKILL.md` 为准。
 
-## 📐 Fence Specification
+## 围栏规范
 
-### Root structure
+### 根结构
 
 ```json
 {
-  "type": "<page kind>",
-  "title": "<page title>",
+  "type": "<页面类型>",
+  "title": "<页面标题>",
   "theme": "default",
   "context": { ... },
   "actions": [ ... ],
@@ -111,176 +113,178 @@ What happens next:
 }
 ```
 
-### Page kinds (`type`, exactly one)
+### 页面类型（根 `type`，必须取其一）
 
-| Kind | Use case |
-|---|---|
-| `login_form` | Sign-in page |
-| `signup_form` | Registration page |
-| `dashboard` | Console / analytics overview |
-| `settings_page` | Configuration page |
-| `table_page` | Data table page |
-| `landing_page` | Marketing landing page |
-| `profile_card` | Personal profile card |
-| `pricing_page` | Pricing / plan comparison |
-| `modal` | Dialog / overlay |
-| `form` | General-purpose form page |
+| 类型 | 适用场景 |
+| --- | --- |
+| `login_form` | 登录页 |
+| `signup_form` | 注册页 |
+| `dashboard` | 控制台 / 数据总览 |
+| `settings_page` | 设置页 |
+| `table_page` | 数据表格页 |
+| `landing_page` | 营销落地页 |
+| `profile_card` | 个人资料卡 |
+| `pricing_page` | 定价 / 套餐对比 |
+| `modal` | 弹窗 / 浮层 |
+| `form` | 通用表单页 |
 
-### Component vocabulary (whitelist)
+### 组件词汇（白名单）
 
-Unknown `type` rejects the **entire** spec.
+未知 `type` **整体拒绝渲染**。
 
-| Category | Types |
-|---|---|
-| Containers | `page` `card` `grid` `row` `col` `section` `tabs` `hero` `nav` `header` `footer` `form` |
-| Display | `text` `badge` `stat` `list` `table` `divider` `avatar` `chart` `steps` |
-| Forms | `input` `select` `textarea` `checkbox` `radio` `button` `link` |
+| 类别 | 类型 |
+| --- | --- |
+| 容器 | `page` `card` `grid` `row` `col` `section` `tabs` `hero` `nav` `header` `footer` `form` |
+| 展示 | `text` `badge` `stat` `list` `table` `divider` `avatar` `chart` `steps` |
+| 表单 | `input` `select` `textarea` `checkbox` `radio` `button` `link` |
 
-Detail (per `SKILL.md`): `grid` takes `cols`; `tabs` takes `items` with `label`+`content`; `hero` takes `title`/`subtitle`/`actions`; `nav` takes `items`; `header` takes `title`/`subtitle`; `footer` takes `text`; `text` takes `size` (h1/h2/h3/body/caption/muted), `content`, `center`; `badge` takes `label` + `tone` (success/warn/danger/accent); `stat` takes `label`+`value`; `list` takes string items or `{title,desc}`; `table` takes `columns`+`rows`; `avatar` takes `name`/`color`; `chart` takes `kind` (bars/donut/line) + `data` `[{label,value,color}]`; `steps` takes `current` + `steps` `[{title,desc}]`; input takes `label`/`placeholder`/`inputType`/`action`; select takes `label`/`options`/`selected`/`action`; textarea takes `label`/`placeholder`/`action`; checkbox/radio take `label`/`checked`/`action`; button takes `text`/`style` (primary/secondary/ghost/danger)/`full`/`small`/`action`; link takes `label`/`href`. Container components (`page`/`card`/`grid`/`row`/`col`/`section`/`form`) hold children in `items` or `components`.
+字段细节（以 `SKILL.md` 为准）：`grid` 带 `cols`；`tabs` 带 `items`（label + content）；`hero` 带 `title`/`subtitle`/`actions`；`nav` 带 `items`；`header` 带 `title`/`subtitle`；`footer` 带 `text`；`text` 带 `size`（h1/h2/h3/body/caption/muted）、`content`、`center`；`badge` 带 `label` + `tone`（success/warn/danger/accent）；`stat` 带 `label`+`value`；`list` 的 items 为字符串或 `{title,desc}`；`table` 带 `columns`+`rows`；`avatar` 带 `name`/`color`；`chart` 带 `kind`（bars/donut/line）+ `data` `[{label,value,color}]`；`steps` 带 `current` + `steps` `[{title,desc}]`；input 带 `label`/`placeholder`/`inputType`/`action`；select 带 `label`/`options`/`selected`/`action`；textarea 带 `label`/`placeholder`/`action`；checkbox/radio 带 `label`/`checked`/`action`；button 带 `text`/`style`（primary/secondary/ghost/danger）/`full`/`small`/`action`；link 带 `label`/`href`。容器组件（`page`/`card`/`grid`/`row`/`col`/`section`/`form`）用 `items` 或 `components` 放子节点。
 
-### Root fields
+### 根节点字段
 
-| Field | Required | Meaning |
-|---|---|---|
-| `type` | ✅ | Page kind, exactly one from the table above |
-| `components` | ✅ | Non-empty array of whitelisted component nodes (≤ 60 nodes, depth ≤ 8) |
-| `theme` | ✅ | Theme name from `theme.json` — never ship a blank spec |
-| `title` | — | Page / card title |
-| `context` | — (recommended) | Result of the four-question adaptation: `{ product, audience, task }` — the renderer doesn't consume it, but the model self-checks and the walkthrough diff uses it |
-| `actions` | — | Top-level page actions: `[{ "action": "name", "label": "…", "tone": "primary\|ghost" }]` |
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `type` | 是 | 页面类型，从上表取其一 |
+| `components` | 是 | 非空白名单组件数组（≤ 60 节点，深度 ≤ 8） |
+| `theme` | 是 | `theme.json` 中的主题名——不许输出白板规格 |
+| `title` | 否 | 页面 / 卡片标题 |
+| `context` | 否（推荐） | 适配四问的结论：`{ product, audience, task }`——渲染器不消费，但 Agent 自省与走查 diff 会用到 |
+| `actions` | 否 | 页面主操作：`[{ "action": "name", "label": "…", "tone": "primary\|ghost" }]` |
 
-### Interaction callbacks
+### 交互动作回传
 
-- Interactive components (`button` / `input` / `select` / `checkbox` / `radio`) carrying `"action": "name"` emit **`[fuse-action] name`** when clicked.
-- Components without `action` render as disabled states.
-- Form pages: `input` / `select` / `textarea` use the `label` field; the primary operation is `style="primary"` — **exactly one primary button per page**.
+- 交互组件（`button` / `input` / `select` / `checkbox` / `radio`）带 `"action": "name"` 时，点击回传 **`[fuse-action] name`**。
+- 不带 `action` 的组件渲染为禁用态。
+- 表单类页面：`input` / `select` / `textarea` 用 `label` 字段标注；主操作为 `style="primary"`——**每页只有一个主操作按钮**。
 
-## 🎨 Design Language
+## 设计语言
 
-### Skeleton → flesh → breath (order is law)
+### 骨架 → 血肉 → 呼吸（顺序铁律）
 
-1. **Skeleton (rules)** — information architecture and layout first: page kind, module regions, hierarchy — clear and self-consistent.
-2. **Flesh (semantics)** — real content and interaction: every block has real text, real data, real buttons. No placeholder shells.
-3. **Breath (emotion)** — restraint: whitespace, subtle motion, low-saturation soft tones. Emotion comes from restraint, never accumulation.
+1. **骨架（规则）** —— 信息架构与布局先行：页面类型、模块分区、层级关系清晰可循、逻辑自洽。
+2. **血肉（语义）** —— 内容与交互详实：每块都有真实的文字、真实的数据、真实的按钮，绝不做占位壳。
+3. **呼吸（情绪）** —— 克制：留白间距、微动画、低饱和柔色调。情绪靠克制而非堆砌。
 
-Never pick a color palette before the structure.
+顺序不许倒：先骨架、再血肉、后呼吸；不许先选一堆颜色再想结构。
 
-### Four-question adaptation (before writing any spec)
+### 适配四问（写规格前先回答）
 
-1. **What is the product?** Web / app / automotive HMI / wearable / data wall / 3D spatial UI…
-2. **Who is it for?** Audience, context of use, reading environment.
-3. **What is the core task?** Every screen serves a single focus.
-4. **Medium constraints?** Responsive breakpoints, touch target sizes, viewing distance, luminance & contrast.
+1. **产品是什么** —— 网页 / APP / 车载 HMI / 智能穿戴 / 数据大屏 / 3D 空间界面……
+2. **给谁用** —— 目标受众、使用场景与阅读环境。
+3. **核心任务** —— 用户进来要完成什么，每屏只服务一个焦点。
+4. **媒介约束** —— 响应式断点 / 触控目标尺寸 / 视觉距离 / 亮度与对比度。
 
-The answers decide `theme`, density, and hierarchy — then write the fence. Record them in `context` (see above).
+按答案选择 `theme`、调整密度与层级，再写围栏规格；结论写入 `context` 字段。
 
-### Design tokens (`config/theme.json`)
+### 设计令牌（`config/theme.json`）
 
-| Theme | Character | Best for |
-|---|---|---|
-| `default` (default) | White base, primary `#2563EB`, radius 8/12/16 | General tool pages |
-| `apple` | `#F5F5F7` gray base, large radii 10/14/18, SF-style | Consumer-facing pages |
-| `dark` | `#0F1115` base, cyan/purple accents, glow | Data walls, dev tools |
+| 主题 | 特征 | 适用 |
+| --- | --- | --- |
+| `default`（默认） | 白底、主色 `#2563EB`、圆角 8/12/16 | 通用工具类页面 |
+| `apple` | `#F5F5F7` 浅灰底、大圆角 10/14/18、SF 字体感 | 消费类页面 |
+| `dark` | `#0F1115` 底、青/紫强调、发光感 | 数据大屏、开发者工具 |
 
-- Colors come only from tokens: primary `colors.primary`, accent `colors.accent`, neutrals `neutralBg/Surface/Text/Muted`, border `border`. Feedback: success `#2E7D32` / warning `#ED6C02` / error `#C62828` (restrained saturation).
-- Grid: spacing 4/8/16/24/32 · radii 8/12/16 (default & dark) · type scale 12/14/16/20/28/36/48 · line-heights 1.7 (body) / 1.25 (heading).
-- The `brand` section holds plugin brand colors as the single source of truth (fuse = blue-violet).
+- 配色只从令牌取：主色 `colors.primary`、强调色 `colors.accent`、中性色 `neutralBg/Surface/Text/Muted`、边框 `border`；反馈色 success `#2E7D32` / warning `#ED6C02` / error `#C62828`（克制饱和度）。
+- 间距栅格 4/8/16/24/32；圆角 8/12/16（default 与 dark）；字号阶梯 12/14/16/20/28/36/48；行高正文 1.7 / 标题 1.25。
+- `brand` 段为插件品牌色单一事实来源（fuse = 蓝紫）。
 
-### Extending with a new style
+### 风格扩展（主题是风格基调，不是新体系）
 
-A new look (cute, magazine, etc.) is a **new theme in `theme.json`** — reuse the 4/8px grid and type scale, keep ≤3 colors + neutrals, and change only primary color / radii / shadows. Never rewrite the skeleton & breath rules; no code changes needed — the renderer picks up new themes dynamically.
+新风格（可爱风 / 杂志风…）= **在 `theme.json` 里新增主题**：复用 4/8px 栅格与字号阶梯，配色仍守「≤ 3 色 + 中性色」，只改主色 / 圆角 / 阴影——不推翻骨架与呼吸规则，渲染器动态生效，**无需改代码**。
 
-> **Shell vs. spec themes are decoupled.** The plugin's own chrome (preview card, toolbar, settings page) follows the **DSH theme** via `--fs-shell-*` tokens (with `--dsw-alias-*`/`data-ds-dark-theme` detection); the rendered **spec** follows the fence's `theme` via `--fs-*` tokens scoped to the card root.
+> **壳与产物解耦：** 插件自身 UI（预览卡、工具栏、设置页）跟随 **DSH 主题**（`--fs-shell-*` 令牌，经 `--dsw-alias-*` / `data-ds-dark-theme` 探测）；渲染**产物**跟随围栏的 `theme`（`--fs-*` 令牌，作用域在卡片根）。
 
-## 🔍 Walkthrough & Refinement
+## 走查微调
 
-**Spec valid ≠ Render correct.** `validate_fuse_spec` passing only proves the spec is legal; the rendered result may still overflow, clip, duplicate the primary button, or miss the intended hierarchy.
+**Spec valid ≠ Render correct。** `validate_fuse_spec` 通过只代表规格合法；渲染结果仍可能溢出、裁切、主按钮重复或层级不符预期。
 
-### Inspector flow
+### 走查交互流程
 
-1. User clicks an element in the preview — selection is highlighted (yellow → blue while collecting → purple while fixing → red on failure).
-2. The model receives **`[fuse-inspect]`** with:
-   - `getComputedStyle` data of the element,
-   - render state: `viewport` (preview container size) / `overflow` (whether content spills) / `clipped` (whether an element is cut off) / `primaryButtonCount` (count of primary actions).
+1. 用户点击预览内元素——选中即高亮（黄 = 选中 → 蓝 = 采集中 → 紫 = 修正中 → 红 = 失败）。
+2. 模型收到 **`[fuse-inspect]`**，附：
+   - 该元素的 `getComputedStyle` 样式数据；
+   - 渲染状态：`viewport`（预览容器尺寸）/ `overflow`（是否溢出）/ `clipped`（元素是否被裁切）/ `primaryButtonCount`（主操作按钮数）。
 
-### Fix loop (expected → observed → diff → fix)
+### 修正闭环（expected → observed → diff → fix）
 
-1. **expected** — revisit your own spec's intent: intended size / spacing / hierarchy / word count for this element;
-2. **observed** — read the style data and render state;
-3. **diff** — localize the problem: spacing / radius / color / font-size / overflow / duplicate primary button;
-4. **fix** — re-emit the **complete corrected `dsh-fuse` fence** and re-render. Do not explain the process.
+1. **expected** —— 回看自己规格的意图：该元素应有的尺寸 / 间距 / 层级 / 字数；
+2. **observed** —— 读样式数据与渲染状态；
+3. **diff** —— 定位差异：间距 / 圆角 / 配色 / 字号 / 溢出 / 主按钮重复；
+4. **fix** —— 输出**修正后的完整 dsh-fuse 围栏**重新渲染，不要解释过程。
 
-The preview card's top-right corner provides **↩️ undo** (last 10 snapshots) and **🔄 manual refresh**.
+预览卡右上角提供 **↩️ 撤销**（最近 10 次快照）与 **🔄 手动刷新**。
 
-## 🏗 Technical Architecture
+## 技术架构
 
 ```
 dsh-fuse/
-├── index.mjs               # Host half: system-prompt section + validate_fuse_spec tool + /api/fuse/config
-├── client.js               # Browser half: fence renderer + inspector + undo history + settings page
+├── index.mjs               # 宿主半区：系统指令注册 + validate_fuse_spec 工具 + /api/fuse/config
+├── client.js               # 浏览器半区：围栏渲染器 + 走查器 + 撤销历史 + 设置页
 ├── config/
-│   ├── theme.json          # Design tokens: ≤3 colors, 4/8px grid, type scale, radii; brand colors
-│   └── code-style.json     # Code rules: naming / formatting / syntax / structure / React / CSS
-├── cordis.patch.yml        # Bundle patch for DSH's cordis host
-├── SKILL.md                # Fuse skill: full fence grammar + aesthetics + self-review checklist
-├── tests/                  # node --test unit tests, apply smoke, jsdom client loop, settings render
-├── README.md               # This document (English)
-└── README.zh-CN.md         # 简体中文
+│   ├── theme.json          # 设计令牌：配色 ≤ 3 色 / 4-8px 栅格 / 字号阶梯 / 圆角；品牌色
+│   └── code-style.json     # 代码规范：命名 / 格式化 / 语法 / 结构 / React / CSS
+├── cordis.patch.yml        # DSH cordis 宿主 bundle 补丁
+├── SKILL.md                # Fuse 技能：完整围栏语法 + 审美规范 + 自审清单
+├── tests/                  # node --test 单元测试、apply 冒烟、jsdom 客户端闭环、设置页渲染
+├── README.md               # 本文件（简体中文）
+└── README.en.md            # English
 ```
 
-**Host half (`index.mjs`)** — registers a system-prompt section (`name: fuse`, `order: 106`, between bash=104 and genui=105) that injects the fence language, a compact theme summary, and the code-style summary into every request; exposes the `validate_fuse_spec` pre-check tool; and serves `GET /api/fuse/config` (themes, code style, page kinds, component types) to the browser renderer.
+**宿主半区（index.mjs）** —— 注册系统指令段（`name: fuse`，`order: 106`，位于 bash=104 与 genui=105 之间），向每次请求注入围栏语言规范、紧凑主题摘要与代码规范摘要；暴露 `validate_fuse_spec` 预检工具；提供 `GET /api/fuse/config`（themes / codeStyle / pageKinds / componentTypes）供浏览器端拉取完整令牌。
 
-**Browser half (`client.js`)** — a zero-dependency pure-DOM renderer (loaded through `__ModuleLoader__`), with `installShellThemeSync()` for DSH-theme following and the inspector/undo machinery.
+**浏览器半区（client.js）** —— 零依赖纯 DOM 渲染器（经 `__ModuleLoader__` 加载），内置 `installShellThemeSync()` 做 DSH 主题跟随，以及走查器与撤销机制。
 
-**Dual-channel rendering** — both halves probe their host:
+**双通道渲染** —— 两侧各自探测宿主：
 
-- *Registry channel:* when the host provides `registerFenceRenderer('dsh-fuse', …)` (DSH `0.1.2-rc.1` contract), the renderer attaches directly;
-- *DOM channel:* on stock DSH without the extension point, a `MutationObserver` sweeps conversation code blocks (`pre`, `.md-code-block`, `[data-lang]`) with the `dsh-fuse` language tag and renders them (with a double-render guard so containers and nested `<pre>` are claimed exactly once).
+- *注册表通道：* 宿主提供 `registerFenceRenderer('dsh-fuse', …)`（DSH `0.1.2-rc.1` 契约）时直挂；
+- *DOM 通道：* 原版 DSH 无扩展点 → `MutationObserver` 扫描对话流中标 `dsh-fuse` 的代码块（`pre`、`.md-code-block`、`[data-lang]`）接管渲染（带双重渲染守卫，容器与内嵌 `<pre>` 只接管一次）。
 
-**Width contract** — the rendered card is `max-width: 748px` (from `--dsh-chat-content-width`), centered, so previews always align with the composer and never fill the viewport in full-screen mode.
+**宽度契约** —— 渲染卡片 `max-width: 748px`（取自 `--dsh-chat-content-width`）居中，与输入框对齐，全屏也不撑满。
 
-## 🧪 Development
+## 开发
 
 ```sh
-# Host unit tests (validator, prompt section, config loading)
+# 宿主单元测试（校验器 / 系统指令段 / 配置加载）
 node --test tests/fuse.test.mjs
 
-# apply() registration smoke test
+# apply() 注册冒烟
 node tests/apply-smoke.mjs
 
-# jsdom client closed loop (fence ⇒ DOM ⇒ inspect)
+# jsdom 客户端闭环（fence ⇒ DOM ⇒ 走查）
 node tests/test-client.mjs
 
-# Settings page rendering
+# 设置页渲染
 node tests/test-settings.mjs
 ```
 
-Node `^22.19.0 || >=24.0.0` is required (see `engines`). Dev dependencies: `jsdom`, `react`, `react-dom`.
+需要 Node `^22.19.0 || >=24.0.0`（见 `engines`）。开发依赖：`jsdom`、`react`、`react-dom`。
 
-### Contributing
+### 如何贡献
 
-1. Keep the whitelists in sync — `index.mjs` (`FUSE_COMPONENT_TYPES`, `FUSE_PAGE_KINDS`) and `client.js` (`CONTAINER_TYPES`, `DISPLAY_TYPES`, `FORM_TYPES`, `PAGE_KINDS`) must agree.
-2. Any new theme must be added to `config/theme.json` only — no renderer code changes.
-3. Behavioral changes must keep `--fs-shell-*` (DSH-theme following) and `--fs-*` (spec-theme) token separation.
-4. Run the full test matrix above before submitting; keep class names stable where possible.
+1. **白名单保持同步** —— `index.mjs`（`FUSE_COMPONENT_TYPES`、`FUSE_PAGE_KINDS`）与 `client.js`（`CONTAINER_TYPES`、`DISPLAY_TYPES`、`FORM_TYPES`、`PAGE_KINDS`）必须一致。
+2. 新主题只加进 `config/theme.json`，**不改渲染器代码**。
+3. 行为变更必须保持 `--fs-shell-*`（跟随 DSH 主题）与 `--fs-*`（跟随围栏主题）两套令牌分离。
+4. 提交前跑完整测试矩阵；类名尽量保持稳定。
 
-## 📜 Changelog
+## 版本历史
 
-- **v1.2.1 (2026-09-05)** — Adapted to the DSH `0.1.2-rc.1` frontend: `registerFenceRenderer` contract probing (direct mount when the host exposes the extension point, DOM-channel fallback when missing) + dark-mode adaptation of the plugin UI (DSH theme `--dsw-alias-*` following; dual-channel detection via `body[data-ds-dark-theme]` / `prefers-color-scheme` + `MutationObserver`); brand colors (blue-violet · design/rendering) written into the `brand` section of `theme.json` as the single source of truth.
-- **v1.2.0 (2026-09-05)** — Plugin's own management UI rebuilt on the skeleton/flesh/breath design language: preview card shell, toolbar, and settings page are token-driven (`--fs-*` variables from `theme.json`); removed the `dsw-alias` hard dependency; fixed React key warnings. Zero class-name changes; all tests pass as-is.
-- **v1.1.0 (2026-09-05)** — Merged "rules are the skeleton, semantics are the flesh, restraint is the breath" with a generic UI/UX prompt framework: four-question adaptation (product/audience/task/medium), root `context` field (validator-verified shape), style-extension guide (new theme in `theme.json`, zero code changes); walkthrough loop hardened — renderer reports render state (`viewport`/`overflow`/`clipped`/`primaryButtonCount`), system prompt guides `expected → observed → diff → fix`.
-- **v1.0.2 (2026-09-03)** — Fixed a DOM-channel double-render regression (code-block container and nested `<pre>` were both claimed → same content rendered twice, duplicated inputs/toolbar); metadata (repository/homepage/bugs/keywords) aligned with the README; peerDeps relaxed to `>=0.1.1-rc.2`.
-- **v1.0.1 (2026-08-28)** — Renderer adapted to the DSH `0.1.1-rc.2` frontend; render container width aligned with the composer (748px centered; never full-bleed).
-- **v1.0.0** — First release: the ui-aesthetics skill, upgraded (design tokens + code style + fence rendering + inspector + undo history).
+| 版本 | 日期 | 要点 |
+| --- | --- | --- |
+| **v1.2.1** | 2026-09-05 | 适配 DSH `0.1.2-rc.1` 前端：`registerFenceRenderer` 契约探测（宿主提供扩展点时直挂，缺失时回退 DOM 通道）+ 插件 UI 深色适配（DSH 主题跟随，双通道探测 + MutationObserver）；品牌色（蓝紫 · 设计渲染）写入 theme.json 的 `brand` 段作单一事实来源 |
+| **v1.2.0** | 2026-09-05 | 插件自身管理 UI 按「骨架/血肉/呼吸」重构：预览卡壳、工具栏、设置页全部令牌驱动（`--fs-*` 变量取自 theme.json），清除 `dsw-alias` 硬依赖；修复 React key 警告；类名零变更，测试全绿 |
+| **v1.1.0** | 2026-09-05 | 融合「规则是骨架，语义是血肉，情绪是呼吸」+ 通用 UI/UX Prompt Framework：适配四问、根节点 `context` 字段（validator 校验形态）、风格扩展指南（theme.json 新增主题零改代码）；走查闭环强化——渲染器回传渲染状态，系统指令引导 expected→observed→diff→fix |
+| **v1.0.2** | 2026-09-03 | 修复 DOM 通道双重渲染回归（代码块容器与内嵌 `<pre>` 都被接管 → 同一内容渲染两遍）；元数据与 README 全量对齐；peerDeps 放宽至 `>=0.1.1-rc.2` |
+| **v1.0.1** | 2026-08-28 | 渲染器适配 DSH `0.1.1-rc.2` 前端；渲染容器宽度与输入框对齐（748px 居中，全屏不撑满） |
+| **v1.0.0** | — | 初版：ui-aesthetics 技能升级版（设计令牌 + 代码规范 + 围栏渲染 + 走查器 + 撤销历史） |
 
-## 🙏 Acknowledgements
+## 鸣谢
 
-This project studied and drew from the data structures, interaction logic, and design values of the following open-source projects (no source-code copying):
+本项目在设计与实现过程中，研究并借鉴了以下开源项目的数据结构、交互逻辑与设计数值（不涉及核心源码的复制）：
 
-- [OpenPencil](https://github.com/open-pencil/open-pencil) — design token system (`theme.json` colors / spacing / typography / radius structure)
-- [dsh-annotate](https://github.com/BrambleXu/dsh-annotate) / [dsh-web-review](https://github.com/CanglongCl/dsh-web-review) — style walkthrough and feedback loop
-- Airbnb / Google / Alibaba coding standards — code rules (`code-style.json`)
+- [OpenPencil](https://github.com/open-pencil/open-pencil) — 设计令牌体系（theme.json 的 colors / spacing / typography / radius 结构）
+- [dsh-annotate](https://github.com/BrambleXu/dsh-annotate) / [dsh-web-review](https://github.com/CanglongCl/dsh-web-review) — 样式走查与反馈回路
+- Airbnb / Google / Alibaba 编码规范 — 代码规范（code-style.json）
 
-## 📄 License
+## License
 
 [MIT](LICENSE)

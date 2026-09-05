@@ -15,7 +15,8 @@
     "config",
     "cordis.patch.yml",
     "SKILL.md",
-    "README.md"
+    "README.md",
+    "README.en.md"
   ],
   "license": "MIT",
   "dsh": {
