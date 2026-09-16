@@ -32,7 +32,9 @@ window.__ModuleLoader__.load({
     const STREAMING = '[data-streaming]'
     const SWEEP_MS = 1000
     const SNAPSHOT_CAP = 10            // 撤销历史环形缓冲上限（文档 §6.3）
-    const MAX_NODES = 200              // 节点预算（防恶意输入，同 genui 量级）
+    // 节点预算：全部节点（含嵌套容器）计数上限，与宿主 index.mjs 的 FUSE_MAX_NODES
+    // 必须保持一致——两侧判定不同构就会出现「宿主说可安全渲染、前端却拒绝」的假阳性
+    const MAX_NODES = 60
     const MAX_DEPTH = 8
 
     const CODE_BLOCK_SELECTORS = 'pre, .md-code-block, .code-block, .code-block-small, [data-lang]'
@@ -146,8 +148,9 @@ html[data-dsh-theme="dark"]{
 `
 
     const CSS = `
-/* 渲染容器宽度与输入框（composer）对齐：DSH 对话内容最大宽度 748px 居中
-   （--dsh-chat-content-width 由 conversation 包定义）；全屏时也不撑满 */
+/* 渲染容器宽度与输入框（composer）对齐：跟随 DSH 对话内容宽度
+   （--dsh-chat-content-width 由 conversation 包定义，实测 680–920px 区间；
+   748px 只是变量缺失时的兜底）；全屏时也不撑满 */
 .fuse-root-holder{width:100%;max-width:var(--dsh-chat-content-width,748px);margin-left:auto;margin-right:auto;box-sizing:border-box}
 ${FS_TOKENS_CSS}
 /* ===== 插件自生 UI 壳（预览卡容器/工具栏/高亮反馈）=====
@@ -234,7 +237,29 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
     // ---------- 工具 ----------
     function isPlainObject(v) { return v !== null && typeof v === 'object' && !Array.isArray(v) }
 
-    /** 解析 fence 体：完整 JSON → 对象；流式部分 JSON → 尽力解析；垃圾 → null */
+    /** 流式残缺 JSON 的补全：按字符串状态机统计未闭合括号（忽略字符串内与转义后的
+        括号），按栈序补上对应闭合符；无法可靠补全（字符串未闭合 / 无未闭合括号）→ null */
+    function closeJson(text) {
+      const stack = []
+      let inStr = false
+      let esc = false
+      for (const ch of text) {
+        if (inStr) {
+          if (esc) esc = false
+          else if (ch === '\\') esc = true
+          else if (ch === '"') inStr = false
+          continue
+        }
+        if (ch === '"') inStr = true
+        else if (ch === '{') stack.push('}')
+        else if (ch === '[') stack.push(']')
+        else if (ch === '}' || ch === ']') stack.pop()
+      }
+      if (inStr || stack.length === 0) return null
+      return text + stack.reverse().join('')
+    }
+
+    /** 解析 fence 体：完整 JSON → 对象；流式部分 JSON → 尽力补全解析；垃圾 → null */
     function parseSpec(raw) {
       const t = raw.trim()
       if (!t) return null
@@ -242,23 +267,28 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
         const v = JSON.parse(t)
         return isPlainObject(v) ? v : null
       } catch {
-        // 流式部分：尝试补齐闭合括号后解析
-        let depth = 0
-        for (const ch of t) {
-          if (ch === '{' || ch === '[') depth++
-          else if (ch === '}' || ch === ']') depth--
-        }
-        if (depth > 0) {
-          try {
-            const v = JSON.parse(t + '}'.repeat(depth))
-            return isPlainObject(v) ? v : null
-          } catch { /* fallthrough */ }
-        }
-        return null
+        const closed = closeJson(t)
+        if (closed === null) return null
+        try {
+          const v = JSON.parse(closed)
+          return isPlainObject(v) ? v : null
+        } catch { return null }
       }
     }
 
-    /** 白名单校验（与 host validateFuseSpec 同构，浏览器端预检） */
+    /** fence 体是否已是完整 JSON（流式中间态 = 需补括号才能解析 → false）。
+        撤销快照只收完整态，避免残缺中间态挤满环形缓冲（见 pushSnapshot） */
+    function isCompleteSpec(raw) {
+      const t = raw.trim()
+      if (!t) return false
+      try { return isPlainObject(JSON.parse(t)) } catch { return false }
+    }
+
+    /** 白名单校验（与 host validateFuseSpec 同构，浏览器端预检）
+        ⚠ 两侧必须同步：index.mjs 的 validateFuseSpec 是同一套规则（白名单 / 容器递归 /
+        tabs 内容递归 / 节点预算 / 嵌套深度），任何一侧改动都要同步另一侧；
+        唯一有意的差异：宿主额外校验 theme 是否在白名单内（前端在令牌未就绪时不做主题校验，
+        未知主题回落 default 渲染），方向上只会更严，不会出现「宿主放行、前端失败」 */
     function validateSpec(spec) {
       const errors = []
       if (!isPlainObject(spec)) return ['规格必须是 JSON 对象']
@@ -266,19 +296,38 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
       const comps = spec.components
       if (!Array.isArray(comps)) return [...errors, 'components 必须是数组']
       let count = 0
-      // 组件容器（items 是组件树）才递归；nav/tabs/hero 的 items/actions 是
-      // 数据结构（{text,active} / {label,content} / 按钮描述），不递归校验
+      let budgetHit = false
+      // 组件容器（items 是组件树）才递归；nav/hero/list 的 items/actions 与 chart.data
+      // 是数据结构（{text,active} / 按钮描述 / 数据点），不递归校验
       const COMPONENT_CONTAINERS = new Set(['page', 'card', 'grid', 'row', 'col', 'section', 'form'])
       const walk = (node, depth) => {
-        if (count > MAX_NODES) return
+        if (budgetHit) return
         count++
-        if (depth > MAX_DEPTH) { errors.push('嵌套超过 8 层'); return }
+        // 节点预算：超限必须报错并拒绝渲染整份规格（此前只累加计数、静默丢弃子树）
+        if (count > MAX_NODES) {
+          budgetHit = true
+          errors.push(`节点数超过 ${MAX_NODES} 个上限（含嵌套容器），拒绝渲染`)
+          return
+        }
+        if (depth > MAX_DEPTH) { errors.push(`嵌套超过 ${MAX_DEPTH} 层`); return }
         if (!isPlainObject(node)) { errors.push('组件必须是 JSON 对象'); return }
         if (!ALL_TYPES.has(node.type)) { errors.push(`未知组件类型 "${node.type}"`); return }
         if (COMPONENT_CONTAINERS.has(node.type)) {
           const items = node.items ?? node.components
           if (items === undefined) errors.push(`容器组件 "${node.type}" 需要 items/components 数组`)
           else if (Array.isArray(items)) for (const it of items) walk(it, depth + 1)
+        }
+        // tabs：items[].content / items[].items 是组件树（渲染器会递归渲染），必须一并校验，
+        // 否则 tab 内的非法 type 会「预检通过 → 渲染成占位壳」（宿主侧同一段逻辑）
+        if (node.type === 'tabs') {
+          const tabs = Array.isArray(node.items) ? node.items : []
+          for (const it of tabs) {
+            if (!isPlainObject(it)) continue
+            const sub = it.content ?? it.items
+            if (sub === undefined) continue
+            if (!Array.isArray(sub)) { errors.push('tabs 项的 content/items 必须是数组'); continue }
+            for (const s of sub) walk(s, depth + 1)
+          }
         }
       }
       for (const c of comps) walk(c, 1)
@@ -288,22 +337,35 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
 
     // ---------- 主题令牌加载 ----------
     let THEMES = null
-    async function loadThemes() {
-      if (THEMES) return THEMES
-      try {
-        const res = await fetch(CONFIG_API, { headers: { accept: 'application/json' } })
-        if (!res.ok) return null
-        const data = await res.json()
-        THEMES = data.themes ?? null
-      } catch { THEMES = null }
-      return THEMES
+    let themeLoad = null
+    /** 拉取 /api/fuse/config 令牌（单次请求，结果缓存；失败也缓存，避免反复重试） */
+    function loadThemes() {
+      if (THEMES) return Promise.resolve(THEMES)
+      if (!themeLoad) {
+        themeLoad = fetch(CONFIG_API, { headers: { accept: 'application/json' } })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => { THEMES = data?.themes ?? null; return THEMES })
+          .catch(() => { THEMES = null; return null })
+      }
+      return themeLoad
     }
+
+    /** 首帧令牌补齐的重试标记（每张卡片根最多补一次，避免 promise 自旋） */
+    const themeRetried = new WeakSet()
 
     /** 应用主题令牌为 CSS 变量（--fuse-* 与 --fs-* 供渲染产物，随围栏 theme 覆盖卡片根；
         --fs-shell-* 为插件壳专用，不作为围栏 theme 覆盖对象，由 installShellThemeSync 管理） */
     function applyTheme(root, themeName) {
       const theme = (THEMES && THEMES[themeName]) || (THEMES && THEMES.default) || null
-      if (!theme) return
+      if (!theme) {
+        // 首帧令牌未就绪（apply() 未 await 拉取）：先用 :root 里的字面量默认色渲染，
+        // 令牌到达后只覆盖同一卡片根的变量（不重建整树，避免闪烁与重排）
+        if (root && !themeRetried.has(root)) {
+          themeRetried.add(root)
+          loadThemes().then((themes) => { if (themes) applyTheme(root, themeName) })
+        }
+        return
+      }
       const set = (k, v) => { if (v !== undefined && v !== null) root.style.setProperty(k, v) }
       const c = theme.colors ?? {}
       const s = theme.spacing ?? {}
@@ -529,11 +591,15 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
         case 'steps': {
           const box = el('div')
           const steps = Array.isArray(node.steps) ? node.steps : []
+          const current = Number(node.current) || 0
           steps.forEach((s, i) => {
             const row = el('div', 'fuse-steps')
-            const dot = el('div', 'dot ' + (i < (node.current ?? 0) ? 'done' : i === (node.current ?? 0) ? '' : 'pending'), String(i + 1))
-            const t = el('div', null, `<b>${String(s.title ?? '')}</b>${s.desc ? ' — ' + String(s.desc) : ''}`)
-            t.innerHTML = `<b>${String(s.title ?? '')}</b>${s.desc ? ' — ' + String(s.desc) : ''}`
+            const dot = el('div', 'dot ' + (i < current ? 'done' : i === current ? '' : 'pending'), String(i + 1))
+            const t = el('div')
+            // title/desc 来自模型 fence（不可信输入）：一律用 DOM 节点 / textContent 构造，
+            // 禁止 innerHTML 拼接（否则 <img onerror> / <script> 类载荷会被解析执行）
+            t.appendChild(el('b', null, String(s?.title ?? '')))
+            if (s?.desc) t.appendChild(document.createTextNode(' — ' + String(s.desc)))
             row.append(dot, t)
             box.appendChild(row)
           })
@@ -608,6 +674,17 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
         }
 
         // ---- 容器 ----
+        case 'page': {
+          // page 在白名单与校验器的容器集合里，渲染器此前漏了该分支 → 合法规格被渲染成
+          // 「未知组件: page」占位壳；此处按容器语义渲染 items
+          const p = el('div')
+          const items = Array.isArray(node.items ?? node.components) ? (node.items ?? node.components) : []
+          items.forEach((it, i) => {
+            const [n] = renderNode(it, ctx, key + ':page:' + i)
+            p.appendChild(n)
+          })
+          return [p, true]
+        }
         case 'hero': {
           const hero = el('div', 'fuse-hero')
           if (node.title) hero.appendChild(el('h1', null, String(node.title)))
@@ -840,11 +917,17 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
     // ---------- 预览卡组装（fence → 卡片 + 工具栏 + 走查） ----------
     const snapshots = new Map() // fenceKey -> [{spec, raw}] 环形缓冲
 
+    /** 压栈（撤销用）：只收「结构完整」的快照，并与上一条 raw 去重。
+        修复：流式过程中的残缺/非法中间态此前也入栈，10 格很快被占满，撤销退不回真实历史 */
     function pushSnapshot(fenceKey, spec, raw) {
+      if (!isPlainObject(spec) || !Array.isArray(spec.components) || spec.components.length === 0) return false
       const arr = snapshots.get(fenceKey) ?? []
+      const last = arr[arr.length - 1]
+      if (last && last.raw === raw) return false
       arr.push({ spec, raw })
       if (arr.length > SNAPSHOT_CAP) arr.shift()
       snapshots.set(fenceKey, arr)
+      return true
     }
 
     /** 渲染完整预览卡：工具栏（🔄 ↩️）+ 页面体；返回 [card, 错误文本] */
@@ -896,8 +979,10 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
         // 重新拉取令牌后重渲染当前原始体
         loadThemes().then(() => onRerender(raw, true))
       })
-      // 快照：渲染成功后记录（撤销用）
-      pushSnapshot(fenceKey, spec, raw)
+      // 快照：仅在「非流式」（fence 体已是完整 JSON）且渲染成功时入栈（撤销用）；
+      // 流式中间态需要补括号才能解析，不是有效历史（宿主 data-streaming 属性时序不可靠，
+      // 这里以 JSON 完整性作为流式判据）
+      if (isCompleteSpec(raw)) pushSnapshot(fenceKey, spec, raw)
       return { card, ok: true, spec }
     }
 
@@ -930,7 +1015,7 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
         const container = el('div', 'fuse-root-holder')
         block.style.display = 'none'
         block.parentNode?.insertBefore(container, block)
-        const state = { container, block, pre, lastRaw: '' }
+        const state = { container, block, pre, lastRaw: '', cleanup: null }
         mounts.set(fenceKey, state)
         const rerender = (raw, force) => {
           if (!force && raw === state.lastRaw) return
@@ -942,14 +1027,32 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
           container.appendChild(card)
           installInspector(container, ctx, fenceKey)
         }
-        // 观察原块文本变化（流式重渲染）
-        const obs = new MutationObserver(() => {
+        // 流式节流：characterData 观察器每个 token 触发一次 → 合并到一帧（rAF）再整树重建；
+        // rAF 不可用或后台标签页不触发时用 ~120ms 尾沿定时兜底（重复调用被 lastRaw 拦截）
+        let rafId = 0
+        let timerId = 0
+        const cancelPendingRender = () => {
+          if (rafId) {
+            if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafId)
+            rafId = 0
+          }
+          if (timerId) { clearTimeout(timerId); timerId = 0 }
+        }
+        const flushStream = () => {
+          cancelPendingRender()
           const raw = pre.textContent ?? ''
           if (raw !== state.lastRaw) rerender(raw, false)
-        })
+        }
+        const scheduleStream = () => {
+          if (rafId || timerId) return
+          if (typeof requestAnimationFrame === 'function') rafId = requestAnimationFrame(flushStream)
+          timerId = setTimeout(flushStream, 120)
+        }
+        // 观察原块文本变化（流式重渲染）
+        const obs = new MutationObserver(scheduleStream)
         obs.observe(pre, { childList: true, characterData: true, subtree: true })
+        state.cleanup = () => { obs.disconnect(); cancelPendingRender() }
         rerender(pre.textContent ?? '', true)
-        return () => obs.disconnect()
       }
 
       const mountAll = () => {
@@ -972,7 +1075,8 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
         clearInterval(sweep)
         observer.disconnect()
         // 还原被接管的代码块，卸载挂载容器，移除插件样式
-        for (const { container, block } of mounts.values()) {
+        for (const { container, block, cleanup } of mounts.values()) {
+          cleanup?.()
           container.remove()
           block.style.display = ''
           block.removeAttribute(PROCESSED)

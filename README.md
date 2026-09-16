@@ -4,7 +4,7 @@
 >
 > [简体中文](README.md) · [English](README.en.md)
 
-> **v1.2.1** · MIT License · DSH ≥ 0.1.1-rc.2（已适配 0.1.2-rc.1）· Node `^22.19.0 || >=24.0.0`
+> **v1.2.2** · MIT License · DSH ≥ 0.1.1-rc.2（已适配 0.1.5-rc.1）· Node `^22.19.0 || >=24.0.0`
 
 dsh-fuse 是 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）插件，也是 **ui-aesthetics 技能的插件化升级版**：把审美规范数值化为设计令牌（`theme.json`）、把代码规约沉淀为 `code-style.json`，让生成的页面级 UI **从构造上就正确**，并通过闭环走查器把细节微调到像素级。
 
@@ -13,7 +13,7 @@ dsh-fuse 是 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）插�
 模型获得「UI 设计 + 代码规范」一体化能力，三步走：
 
 1. **生成** —— 模型用自然语言描述页面，在回答正文中输出 `dsh-fuse` 围栏（结构化 JSON 规格）；输出前经 `validate_fuse_spec` 预检，坏规格先被拦截。
-2. **渲染** —— 浏览器端把规格渲染成真实页面 UI，内联呈现在对话流中；宽度与输入框对齐（居中、748px 上限），全屏也不撑满。
+2. **渲染** —— 浏览器端把规格渲染成真实页面 UI，内联呈现在对话流中；宽度跟随对话内容宽度（`max-width: var(--dsh-chat-content-width)`，实测 680–920px 区间），居中且与输入框同宽，全屏也不撑满。
 3. **微调** —— 点击预览内任意元素，采集 `getComputedStyle` + 渲染状态，按 `expected → observed → diff → fix` 闭环修正后重新输出完整围栏；环形缓冲保留最近 10 次快照可供撤销。
 
 设计哲学：**规则是骨架，语义是血肉，情绪是呼吸**。每份规格通过 `theme`（default / apple / dark）显式决定情绪基调，拒绝占位壳，间距一律落在 4/8px 栅格上。
@@ -23,7 +23,7 @@ dsh-fuse 是 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）插�
 | 特性 | 说明 |
 | --- | --- |
 | 一键生成 | 自然语言描述 → Agent 输出 `dsh-fuse` 围栏 → 渲染出真实页面 UI |
-| 内联预览 | 渲染于 DSH 对话流内；748px 居中，与输入框（composer）同宽，全屏不撑满 |
+| 内联预览 | 渲染于 DSH 对话流内；宽度继承对话内容宽度（`--dsh-chat-content-width`，实测 680–920px），与输入框（composer）同宽，全屏不撑满 |
 | 像素级走查 | 点击预览元素 → 采集 `getComputedStyle` + 渲染状态 → `[fuse-inspect]` 回传模型 |
 | 渲染状态回传 | viewport / overflow / clipped / primaryButtonCount —— **Spec valid ≠ Render correct** |
 | 修正闭环 | expected（规格意图）→ observed（实际渲染）→ diff（定位差异）→ fix（重输出完整围栏） |
@@ -62,7 +62,7 @@ dsh plugin --profile web add link:./dsh-fuse
 
 然后让模型「做一个登录页」——对话流中应直接出现渲染好的 `dsh-fuse` 预览卡。
 
-> **安全说明：** 围栏走「白名单校验 → 渲染」管道。未知组件 type 整体拒绝渲染；节点预算：宿主侧 60 节点 / 8 层深，渲染器侧 200 节点 / 8 层深。
+> **安全说明：** 围栏走「白名单校验 → 渲染」管道。未知组件 type 整体拒绝渲染；节点预算两侧一致：**60 节点（含嵌套容器与 `tabs` 内容）/ 8 层深**，超限即报错并拒绝渲染该规格。不可信文本（`title`/`desc`/`label` 等）一律以 DOM 节点 + `textContent` 构造，不使用 `innerHTML`。
 
 ## 快速开始
 
@@ -92,7 +92,7 @@ dsh plugin --profile web add link:./dsh-fuse
 接下来会发生什么：
 
 - **预检** —— `validate_fuse_spec` 按白名单校验（页面类型 / 组件词汇 / 容器规则 / 预算），坏规格在渲染前被拒绝。
-- **渲染** —— 浏览器端从 `/api/fuse/config` 拉取设计令牌，把所选 `theme` 映射为 CSS 变量，渲染实时预览卡；卡片 748px 居中，与输入框同宽。
+- **渲染** —— 浏览器端从 `/api/fuse/config` 拉取设计令牌，把所选 `theme` 映射为 CSS 变量，渲染实时预览卡；卡片宽度跟随对话内容宽度（`--dsh-chat-content-width`），与输入框同宽。
 - **交互** —— 点击带 `"action": "login"` 的「登 录」按钮，回传 `[fuse-action] login`，对话继续推进流程（模拟登录 / 展示错误 / 跳转等）。
 - **禁用态** —— 不带 `action` 的按钮渲染为禁用态。
 
@@ -145,7 +145,7 @@ dsh plugin --profile web add link:./dsh-fuse
 | 字段 | 必填 | 含义 |
 | --- | --- | --- |
 | `type` | 是 | 页面类型，从上表取其一 |
-| `components` | 是 | 非空白名单组件数组（≤ 60 节点，深度 ≤ 8） |
+| `components` | 是 | 非空白名单组件数组（≤ 60 节点含嵌套，深度 ≤ 8） |
 | `theme` | 是 | `theme.json` 中的主题名——不许输出白板规格 |
 | `title` | 否 | 页面 / 卡片标题 |
 | `context` | 否（推荐） | 适配四问的结论：`{ product, audience, task }`——渲染器不消费，但 Agent 自省与走查 diff 会用到 |
@@ -239,7 +239,7 @@ dsh-fuse/
 - *注册表通道：* 宿主提供 `registerFenceRenderer('dsh-fuse', …)`（DSH `0.1.2-rc.1` 契约）时直挂；
 - *DOM 通道：* 原版 DSH 无扩展点 → `MutationObserver` 扫描对话流中标 `dsh-fuse` 的代码块（`pre`、`.md-code-block`、`[data-lang]`）接管渲染（带双重渲染守卫，容器与内嵌 `<pre>` 只接管一次）。
 
-**宽度契约** —— 渲染卡片 `max-width: 748px`（取自 `--dsh-chat-content-width`）居中，与输入框对齐，全屏也不撑满。
+**宽度契约** —— 渲染卡片 `max-width: var(--dsh-chat-content-width, 748px)`：宽度继承 DSH 对话内容宽度（**实测 680–920px 区间**，随窗口/侧栏变化；`748px` 只是变量缺失时的兜底值），居中并与输入框对齐，全屏也不撑满。
 
 ## 开发
 
@@ -259,9 +259,11 @@ node tests/test-settings.mjs
 
 需要 Node `^22.19.0 || >=24.0.0`（见 `engines`）。开发依赖：`jsdom`、`react`、`react-dom`。
 
+> **依赖说明（peerDependencies）** —— `@deepseek-ai/dsh-system-prompt` 的范围写作 `>=0.1.1-rc.2`，但按 semver 预发布规则它**并不接受** `0.1.5-rc.1`（实测 `semver.satisfies('0.1.5-rc.1', '>=0.1.1-rc.2') === false`）。该范围仅作参考：DSH 宿主必定提供该包，故已在 `peerDependenciesMeta` 中标记为 `optional`，消除消费方的 unmet peer 噪音；**实际版本以宿主提供的为准，已实测 DSH `0.1.5-rc.1` 正常加载运行**。
+
 ### 如何贡献
 
-1. **白名单保持同步** —— `index.mjs`（`FUSE_COMPONENT_TYPES`、`FUSE_PAGE_KINDS`）与 `client.js`（`CONTAINER_TYPES`、`DISPLAY_TYPES`、`FORM_TYPES`、`PAGE_KINDS`）必须一致。
+1. **白名单与校验规则保持同步** —— `index.mjs`（`FUSE_COMPONENT_TYPES`、`FUSE_PAGE_KINDS`、`FUSE_MAX_NODES`/`FUSE_MAX_DEPTH`）与 `client.js`（`CONTAINER_TYPES`、`DISPLAY_TYPES`、`FORM_TYPES`、`PAGE_KINDS`、`MAX_NODES`/`MAX_DEPTH`）必须一致；容器递归集合与 `tabs.items[].content` 递归规则也必须两侧同构——否则会出现「宿主说可安全渲染、前端却渲染失败」的判定分裂。
 2. 新主题只加进 `config/theme.json`，**不改渲染器代码**。
 3. 行为变更必须保持 `--fs-shell-*`（跟随 DSH 主题）与 `--fs-*`（跟随围栏主题）两套令牌分离。
 4. 提交前跑完整测试矩阵；类名尽量保持稳定。
@@ -270,11 +272,12 @@ node tests/test-settings.mjs
 
 | 版本 | 日期 | 要点 |
 | --- | --- | --- |
+| **v1.2.2** | 2026-09-16 | 安全与一致性修复：`steps` 的 title/desc 不再用 `innerHTML` 拼接（改 DOM 节点 + `textContent`，堵住 fence 注入路径）；节点预算真正生效——声明后从未使用的 `MAX_NODES` 改为 60 并在超限时报错拒绝渲染，宿主与渲染器两侧同构；宿主校验补上 `tabs.items[].content` 递归（此前 tab 内非法组件能过宿主校验却必被前端拒绝）；撤销栈只收结构完整且非流式的快照并与上一条 `raw` 去重（中间态不再挤爆 10 格）；流式重渲染用 requestAnimationFrame 合并（120ms 尾沿兜底）；`parseSpec` 括号补齐改按字符串状态机；补 `page` 容器的渲染分支；首帧令牌未就绪时异步补齐；窗口宽度文档改为「继承对话宽度（实测 680–920px）」；`test` 脚本改为跨平台 glob；`dsh-system-prompt` 标记为 optional peer |
 | **v1.2.1** | 2026-09-05 | 适配 DSH `0.1.2-rc.1` 前端：`registerFenceRenderer` 契约探测（宿主提供扩展点时直挂，缺失时回退 DOM 通道）+ 插件 UI 深色适配（DSH 主题跟随，双通道探测 + MutationObserver）；品牌色（蓝紫 · 设计渲染）写入 theme.json 的 `brand` 段作单一事实来源 |
 | **v1.2.0** | 2026-09-05 | 插件自身管理 UI 按「骨架/血肉/呼吸」重构：预览卡壳、工具栏、设置页全部令牌驱动（`--fs-*` 变量取自 theme.json），清除 `dsw-alias` 硬依赖；修复 React key 警告；类名零变更，测试全绿 |
 | **v1.1.0** | 2026-09-05 | 融合「规则是骨架，语义是血肉，情绪是呼吸」+ 通用 UI/UX Prompt Framework：适配四问、根节点 `context` 字段（validator 校验形态）、风格扩展指南（theme.json 新增主题零改代码）；走查闭环强化——渲染器回传渲染状态，系统指令引导 expected→observed→diff→fix |
 | **v1.0.2** | 2026-09-03 | 修复 DOM 通道双重渲染回归（代码块容器与内嵌 `<pre>` 都被接管 → 同一内容渲染两遍）；元数据与 README 全量对齐；peerDeps 放宽至 `>=0.1.1-rc.2` |
-| **v1.0.1** | 2026-08-28 | 渲染器适配 DSH `0.1.1-rc.2` 前端；渲染容器宽度与输入框对齐（748px 居中，全屏不撑满） |
+| **v1.0.1** | 2026-08-28 | 渲染器适配 DSH `0.1.1-rc.2` 前端；渲染容器宽度与输入框对齐（居中、全屏不撑满） |
 | **v1.0.0** | — | 初版：ui-aesthetics 技能升级版（设计令牌 + 代码规范 + 围栏渲染 + 走查器 + 撤销历史） |
 
 ## 鸣谢

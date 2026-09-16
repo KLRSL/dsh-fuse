@@ -1,7 +1,7 @@
 {
   "name": "dsh-fuse",
-  "version": "1.2.1",
-  "description": "Fuse v1.2.1 — UI 设计 + 代码规范一体化插件（ui-aesthetics 技能升级版）：设计令牌 theme.json（含品牌色单一事实来源）+ 代码规范 code-style.json + dsh-fuse fence 页面级渲染 + 走查器像素级微调 + 撤销历史 + 渲染状态回传（Spec valid≠Render correct）+ 通用适配流程与风格扩展；插件 UI 壳按功能设计语言（设计工作台/蓝紫）+ 深色模式适配（DSH 主题 dsw-alias 跟随，双通道探测）",
+  "version": "1.2.2",
+  "description": "Fuse v1.2.2 — UI 设计 + 代码规范一体化插件（ui-aesthetics 技能升级版）：设计令牌 theme.json（含品牌色单一事实来源）+ 代码规范 code-style.json + dsh-fuse fence 页面级渲染 + 走查器像素级微调 + 撤销历史 + 渲染状态回传（Spec valid≠Render correct）+ 通用适配流程与风格扩展；插件 UI 壳按功能设计语言（设计工作台/蓝紫）+ 深色模式适配（DSH 主题 dsw-alias 跟随，双通道探测）。v1.2.2：steps 去掉 innerHTML 注入、节点预算 60 真正生效且宿主/前端同构（含 tabs 内容递归）、撤销快照只收完整非流式状态",
   "type": "module",
   "main": "index.mjs",
   "exports": {
@@ -37,7 +37,7 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "scripts": {
-    "test": "node --test \"tests/*.test.mjs\""
+    "test": "node --test tests/*.test.mjs"
   },
   "devDependencies": {
     "jsdom": "^25.0.0",
@@ -47,6 +47,11 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2",
     "@deepseek-ai/dsh-system-prompt": ">=0.1.1-rc.2"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-system-prompt": {
+      "optional": true
+    }
   },
   "repository": {
     "type": "git",

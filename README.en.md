@@ -4,7 +4,7 @@
 >
 > [简体中文](README.md) · [English](README.en.md)
 
-> **v1.2.1** · MIT License · DSH ≥ 0.1.1-rc.2 (adapted for 0.1.2-rc.1) · Node `^22.19.0 || >=24.0.0`
+> **v1.2.2** · MIT License · DSH ≥ 0.1.1-rc.2 (adapted for 0.1.5-rc.1) · Node `^22.19.0 || >=24.0.0`
 
 **dsh-fuse** is a [DeepSeek Harness](https://github.com/deepseek-ai/dsh) (DSH) plugin — and the **plugin upgrade of the ui-aesthetics skill**: aesthetic rules are crystallized into design tokens (`theme.json`) and code rules into `code-style.json`, so generated page-level UI is **correct by construction** and can be refined down to the pixel through a closed-loop inspector.
 
@@ -13,7 +13,7 @@
 One integrated capability — **UI design + code-style enforcement** — in three steps: *generate*, *render*, *refine*.
 
 1. **Generate** — the model describes a page in natural language and emits a `dsh-fuse` fence containing a structured JSON spec, validated by `validate_fuse_spec` before it is ever rendered.
-2. **Render** — the browser-side renderer turns the spec into a real page UI, rendered inline in the conversation flow, width-aligned with the composer (748px centered) — never full-bleed.
+2. **Render** — the browser-side renderer turns the spec into a real page UI, rendered inline in the conversation flow; the width follows the conversation content width (`max-width: var(--dsh-chat-content-width)`, measured 680–920px), centered and aligned with the composer — never full-bleed.
 3. **Refine** — click any element in the preview to collect `getComputedStyle` + render-state diagnostics, run the `expected → observed → diff → fix` loop, and re-render a corrected fence. A ring buffer holds the last 10 snapshots for undo.
 
 Design philosophy: **rules are the skeleton, semantics are the flesh, restraint is the breath**. Every spec decides its emotional tone through `theme` (default / apple / dark), has no placeholder content, and follows the 4/8px grid.
@@ -23,7 +23,7 @@ Design philosophy: **rules are the skeleton, semantics are the flesh, restraint 
 | Feature | Description |
 | --- | --- |
 | One-shot generation | Natural language → agent emits a `dsh-fuse` fence → a real page UI renders |
-| Inline preview | Rendered in the DSH conversation flow; 748px max-width, centered, aligned with the composer (never full-bleed) |
+| Inline preview | Rendered in the DSH conversation flow; width inherited from the conversation content width (`--dsh-chat-content-width`, measured 680–920px), centered, aligned with the composer (never full-bleed) |
 | Pixel-level inspection | Click a rendered element → the inspector collects `getComputedStyle` + render state → sends `[fuse-inspect]` back to the model |
 | Render-state telemetry | `viewport` / `overflow` / `clipped` / `primaryButtonCount` — **Spec valid ≠ Render correct** |
 | Expected → observed → diff → fix | Structured refinement loop: compare intent against reality, localize the mismatch, re-emit the full corrected fence |
@@ -62,7 +62,7 @@ dsh plugin --profile web add link:./dsh-fuse
 
 Then ask the model to "make a login page" — a rendered `dsh-fuse` preview card should appear directly in the conversation.
 
-> **Note on safety:** fences go through a strict whitelist validate → render pipeline. Unknown component types reject the whole spec; the node budget is capped at 60 nodes / depth 8 on the host side and 200 nodes / depth 8 in the renderer.
+> **Note on safety:** fences go through a strict whitelist validate → render pipeline. Unknown component types reject the whole spec; the node budget is identical on both sides — **60 nodes (including nested containers and `tabs` content) / depth 8** — and exceeding it is a hard error that rejects the spec. Untrusted text (`title`/`desc`/`label`, …) is always built with DOM nodes + `textContent`, never with `innerHTML`.
 
 ## Quick Start
 
@@ -92,7 +92,7 @@ The model emits a `dsh-fuse` fence in the body of its reply:
 What happens next:
 
 - The **validator** (`validate_fuse_spec`) checks the spec against the whitelist (page kinds, component types, container rules, budgets). Bad specs are rejected before rendering.
-- The **renderer** fetches design tokens from `/api/fuse/config` in the browser, maps the chosen `theme` to CSS variables, and renders a live preview card (748px max-width, centered — the same width as the composer).
+- The **renderer** fetches design tokens from `/api/fuse/config` in the browser, maps the chosen `theme` to CSS variables, and renders a live preview card whose width follows the conversation content width (`--dsh-chat-content-width`), the same width as the composer.
 - Clicking **登 录** (which carries `"action": "login"`) emits `[fuse-action] login` back to the model, so the conversation can continue the flow (simulate the login, show an error, navigate).
 - Buttons without an `action` render as **disabled**.
 
@@ -145,7 +145,7 @@ Detail (per `SKILL.md`): `grid` takes `cols`; `tabs` takes `items` with `label`+
 | Field | Required | Meaning |
 | --- | --- | --- |
 | `type` | ✅ | Page kind, exactly one from the table above |
-| `components` | ✅ | Non-empty array of whitelisted component nodes (≤ 60 nodes, depth ≤ 8) |
+| `components` | ✅ | Non-empty array of whitelisted component nodes (≤ 60 nodes including nested ones, depth ≤ 8) |
 | `theme` | ✅ | Theme name from `theme.json` — never ship a blank spec |
 | `title` | — | Page / card title |
 | `context` | — (recommended) | Result of the four-question adaptation: `{ product, audience, task }` — the renderer doesn't consume it, but the model self-checks and the walkthrough diff uses it |
@@ -239,7 +239,7 @@ dsh-fuse/
 - *Registry channel:* when the host provides `registerFenceRenderer('dsh-fuse', …)` (DSH `0.1.2-rc.1` contract), the renderer attaches directly;
 - *DOM channel:* on stock DSH without the extension point, a `MutationObserver` sweeps conversation code blocks (`pre`, `.md-code-block`, `[data-lang]`) with the `dsh-fuse` language tag and renders them (with a double-render guard so containers and nested `<pre>` are claimed exactly once).
 
-**Width contract** — the rendered card is `max-width: 748px` (from `--dsh-chat-content-width`), centered, so previews always align with the composer and never fill the viewport in full-screen mode.
+**Width contract** — the rendered card uses `max-width: var(--dsh-chat-content-width, 748px)`: its width is inherited from the DSH conversation content width (**measured across a 680–920px range**, varying with window/sidebar; `748px` is only the fallback used when the variable is absent). It stays centered and composer-aligned, and never fills the viewport in full-screen mode.
 
 ## Development
 
@@ -259,9 +259,11 @@ node tests/test-settings.mjs
 
 Node `^22.19.0 || >=24.0.0` is required (see `engines`). Dev dependencies: `jsdom`, `react`, `react-dom`.
 
+> **Dependency note (peerDependencies)** — `@deepseek-ai/dsh-system-prompt` is declared as `>=0.1.1-rc.2`, but by semver's prerelease rules that range **does not accept** `0.1.5-rc.1` (`semver.satisfies('0.1.5-rc.1', '>=0.1.1-rc.2') === false`, measured). The range is kept for reference only: the DSH host always provides the package, so it is marked `optional` in `peerDependenciesMeta` to silence unmet-peer noise on the consumer side. **The effective version is whatever the host provides — DSH `0.1.5-rc.1` has been verified to load and run fine.**
+
 ### Contributing
 
-1. Keep the whitelists in sync — `index.mjs` (`FUSE_COMPONENT_TYPES`, `FUSE_PAGE_KINDS`) and `client.js` (`CONTAINER_TYPES`, `DISPLAY_TYPES`, `FORM_TYPES`, `PAGE_KINDS`) must agree.
+1. Keep the whitelists **and validation rules** in sync — `index.mjs` (`FUSE_COMPONENT_TYPES`, `FUSE_PAGE_KINDS`, `FUSE_MAX_NODES`/`FUSE_MAX_DEPTH`) and `client.js` (`CONTAINER_TYPES`, `DISPLAY_TYPES`, `FORM_TYPES`, `PAGE_KINDS`, `MAX_NODES`/`MAX_DEPTH`) must agree. The container-recursion set and the `tabs.items[].content` recursion must match on both sides too — otherwise the host reports "safe to render" while the renderer rejects the spec.
 2. Any new theme must be added to `config/theme.json` only — no renderer code changes.
 3. Behavioral changes must keep `--fs-shell-*` (DSH-theme following) and `--fs-*` (spec-theme) token separation.
 4. Run the full test matrix above before submitting; keep class names stable where possible.
@@ -270,11 +272,12 @@ Node `^22.19.0 || >=24.0.0` is required (see `engines`). Dev dependencies: `jsdo
 
 | Version | Date | Highlights |
 | --- | --- | --- |
+| **v1.2.2** | 2026-09-16 | Security and consistency fixes: `steps` no longer builds `title`/`desc` via `innerHTML` (DOM nodes + `textContent` close a fence-injection path); the node budget actually takes effect — the never-enforced `MAX_NODES` is now 60 and exceeding it is an error that rejects the spec, with host and renderer behaving identically; host validation now recurses into `tabs.items[].content` (illegal components inside a tab used to pass host validation yet always fail in the renderer); the undo stack only records complete, non-streaming snapshots and de-duplicates consecutive identical `raw` (intermediate states no longer flood the 10 slots); streaming re-renders are coalesced with `requestAnimationFrame` (120ms trailing fallback); `parseSpec` completes brackets with a string-state machine; added the missing `page` container render branch; first-frame tokens are back-filled asynchronously; the width docs now say "inherits the conversation width (measured 680–920px)"; the `test` script uses a cross-platform glob; `dsh-system-prompt` is marked as an optional peer |
 | **v1.2.1** | 2026-09-05 | Adapted to DSH `0.1.2-rc.1`: `registerFenceRenderer` contract probing (direct mount when the host exposes the extension point, DOM-channel fallback when missing) + dark-mode adaptation of the plugin UI (DSH-theme following, dual-channel detection + MutationObserver); brand colors (blue-violet · design/rendering) written into the `brand` section of `theme.json` as the single source of truth |
 | **v1.2.0** | 2026-09-05 | Plugin's own management UI rebuilt on the skeleton/flesh/breath design language: preview card shell, toolbar, and settings page are token-driven (`--fs-*` variables from `theme.json`); removed the `dsw-alias` hard dependency; fixed React key warnings. Zero class-name changes; all tests pass as-is |
 | **v1.1.0** | 2026-09-05 | Merged the skeleton/flesh/breath philosophy with a generic UI/UX prompt framework: four-question adaptation, root `context` field (validator-verified shape), style-extension guide (new theme in `theme.json`, zero code changes); walkthrough loop hardened — renderer reports render state, system prompt guides `expected → observed → diff → fix` |
 | **v1.0.2** | 2026-09-03 | Fixed a DOM-channel double-render regression (code-block container and nested `<pre>` were both claimed → same content rendered twice); metadata aligned with the README; peerDeps relaxed to `>=0.1.1-rc.2` |
-| **v1.0.1** | 2026-08-28 | Renderer adapted to the DSH `0.1.1-rc.2` frontend; render container width aligned with the composer (748px centered, never full-bleed) |
+| **v1.0.1** | 2026-08-28 | Renderer adapted to the DSH `0.1.1-rc.2` frontend; render container width aligned with the composer (centered, never full-bleed) |
 | **v1.0.0** | — | First release: the ui-aesthetics skill, upgraded (design tokens + code style + fence rendering + inspector + undo history) |
 
 ## Acknowledgements

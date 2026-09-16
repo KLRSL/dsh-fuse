@@ -56,6 +56,21 @@ export const FUSE_PAGE_KINDS = [
 export const FUSE_ACTION_PREFIX = '[fuse-action]'
 export const FUSE_INSPECT_PREFIX = '[fuse-inspect]'
 
+// ⚠ 校验预算：必须与 client.js 的 MAX_NODES / MAX_DEPTH 保持一致。两侧不同构时，
+// 宿主会报「可安全渲染」而浏览器端渲染失败（或反之），规格可信度崩塌。
+/** 节点预算：全部节点（含嵌套容器）计数上限 */
+export const FUSE_MAX_NODES = 60
+/** 最大嵌套深度 */
+export const FUSE_MAX_DEPTH = 8
+
+/** 组件容器（items/components 是组件树，需要递归校验）——与 client.js 同期维护 */
+const COMPONENT_CONTAINERS = new Set(['page', 'card', 'grid', 'row', 'col', 'section', 'form'])
+
+/** 判断值是否为可递归的组件节点对象 */
+function isComponentNode(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v)
+}
+
 // ---------- 配置加载（theme.json / code-style.json） ----------
 
 function readConfigJson(name) {
@@ -133,6 +148,7 @@ ${FUSE_COMPONENT_TYPES.join(' ')}
 - 交互组件（button/input/select/checkbox/radio）带 "action":"name" 时，点击后以 [fuse-action] 回传；
   不带 action 的按钮渲染为禁用态
 - 表单类页面：input/select/textarea 用 label 字段标注，按钮 style="primary" 为主操作（每页只有一个主操作）
+- 预算：组件总数（含嵌套容器与 tabs 内容）≤ ${FUSE_MAX_NODES}，嵌套深度 ≤ ${FUSE_MAX_DEPTH}，超限整份规格被拒绝渲染
 
 ### 设计令牌（theme.json，theme 字段选主题名）
 ${summarizeTheme()}
@@ -206,10 +222,20 @@ export function validateFuseSpec(spec) {
     return errors
   }
   if (comps.length === 0) errors.push('components 不能为空')
-  if (comps.length > 60) errors.push('components 超过 60 个节点上限')
+  let count = 0
+  let budgetHit = false
+  // walk 与 client.js 的 validateSpec 同构（白名单 / 容器递归 / tabs 内容递归 / 预算 / 深度）
   const walk = (node, depth) => {
-    if (depth > 8) { errors.push('嵌套超过 8 层'); return }
-    if (node === null || typeof node !== 'object' || Array.isArray(node)) {
+    if (budgetHit) return
+    count++
+    // 节点预算：超限即报错（含嵌套计数），避免「宿主放行 → 前端拒绝」的判定分裂
+    if (count > FUSE_MAX_NODES) {
+      budgetHit = true
+      errors.push(`节点数超过 ${FUSE_MAX_NODES} 个上限（含嵌套容器），拒绝渲染`)
+      return
+    }
+    if (depth > FUSE_MAX_DEPTH) { errors.push(`嵌套超过 ${FUSE_MAX_DEPTH} 层`); return }
+    if (!isComponentNode(node)) {
       errors.push('组件必须是 JSON 对象'); return
     }
     const t = node.type
@@ -217,9 +243,8 @@ export function validateFuseSpec(spec) {
       errors.push(`未知组件类型 "${t}"，可选：${FUSE_COMPONENT_TYPES.join(' / ')}`)
       return
     }
-    // 组件容器（items 是组件树）才递归；nav/tabs/hero 的 items/actions 是
-    // 数据结构（{text,active} / {label,content} / 按钮描述），不递归校验
-    const COMPONENT_CONTAINERS = new Set(['page', 'card', 'grid', 'row', 'col', 'section', 'form'])
+    // 组件容器（items 是组件树）才递归；nav/hero/list 的 items/actions 与 chart.data 是
+    // 数据结构（{text,active} / 按钮描述 / 数据点），不递归校验
     if (COMPONENT_CONTAINERS.has(t)) {
       const items = node.items ?? node.components
       if (items === undefined) {
@@ -228,14 +253,54 @@ export function validateFuseSpec(spec) {
         for (const it of items) walk(it, depth + 1)
       }
     }
+    // tabs：items[].content / items[].items 是组件树（渲染器 renderNode 会递归渲染），
+    // 必须一并递归校验，否则 tab 内的非法组件能过宿主校验、却必被前端拒绝渲染
+    if (t === 'tabs') {
+      const tabs = Array.isArray(node.items) ? node.items : []
+      for (const it of tabs) {
+        if (!isComponentNode(it)) continue
+        const sub = it.content ?? it.items
+        if (sub === undefined) continue
+        if (!Array.isArray(sub)) { errors.push('tabs 项的 content/items 必须是数组'); continue }
+        for (const s of sub) walk(s, depth + 1)
+      }
+    }
   }
   for (const c of comps) walk(c, 1)
   return errors
 }
 
+// ---------- 品牌色一致性断言（theme.json 的 brand 段号称单一事实来源） ----------
+
+/**
+ * 启动期核对 brand.fuse 与 themes 的实际取值是否一致，不一致只告警不阻断
+ * （避免「号称单一事实来源、实际各处手抄」的静默漂移）。
+ * 对应关系：浅色 primary/accent = themes.default.colors；深色 primary/accent = themes.dark.colors。
+ */
+function checkBrandTokens() {
+  const brand = themeConfig?.brand?.fuse
+  if (!brand) return
+  const light = themeConfig?.themes?.default?.colors ?? {}
+  const dark = themeConfig?.themes?.dark?.colors ?? {}
+  const pairs = [
+    ['primary', brand.primary, light.primary],
+    ['accent', brand.accent, light.accent],
+    ['darkPrimary', brand.darkPrimary, dark.primary],
+    ['darkSecondary', brand.darkSecondary, dark.accent],
+  ]
+  const drift = pairs.filter(([, a, b]) => a !== undefined && b !== undefined && String(a) !== String(b))
+  if (drift.length > 0) {
+    console.warn('[dsh-fuse] theme.json 品牌色与主题令牌不一致（brand 段应为单一事实来源）：',
+      drift.map(([k, a, b]) => `${k}=${a} ≠ ${b}`).join('；'))
+  }
+}
+
 // ---------- 插件入口 ----------
 
 export function apply(ctx) {
+  // 0. 品牌色一致性断言（theme.json 的 brand 段 = 单一事实来源，漂移只告警）
+  checkBrandTokens()
+
   // 1. 系统指令注册：fence 语言 + 令牌 + 代码规范（硬注入 systemPrompt 已在 export const inject 声明）
   ctx.systemPrompt.section({
     name: 'fuse',
