@@ -255,7 +255,12 @@ node tests/test-client.mjs
 
 # Settings page rendering
 node tests/test-settings.mjs
+
+# Release consistency check (version / README version exposure / files whitelist / lock / git state)
+node scripts/release-check.mjs
 ```
+
+**CI**: `.github/workflows/ci.yml` runs "install deps → release check → unit tests → `npm pack --dry-run`" on Node 22.x / 24.x for every push and pull request.
 
 Node `^22.19.0 || >=24.0.0` is required (see `engines`). Dev dependencies: `jsdom`, `react`, `react-dom`.
 

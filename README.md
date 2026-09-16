@@ -255,7 +255,12 @@ node tests/test-client.mjs
 
 # 设置页渲染
 node tests/test-settings.mjs
+
+# 发布一致性自检（版本号 / README 版本露出 / files 白名单 / lock / git 状态）
+node scripts/release-check.mjs
 ```
+
+**CI**：`.github/workflows/ci.yml` 在 Node 22.x / 24.x 上执行「安装依赖 → 发布自检 → 单元测试 → `npm pack --dry-run`」，推送与 PR 都会触发。
 
 需要 Node `^22.19.0 || >=24.0.0`（见 `engines`）。开发依赖：`jsdom`、`react`、`react-dom`。
 
