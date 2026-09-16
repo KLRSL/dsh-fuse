@@ -26,6 +26,16 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import {
+  createHostValidator,
+  themeNamesFromConfig,
+  FUSE_PAGE_KINDS,
+  FUSE_COMPONENT_TYPES,
+  FUSE_CONTAINER_TYPES,
+  FUSE_MAX_NODES,
+  FUSE_MAX_DEPTH,
+} from './spec-validator.mjs'
+
 // ---------- 配置与常量 ----------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -36,40 +46,24 @@ export const inject = ['systemPrompt']
 /** 系统指令段 order：约定 100-199 为工具指引区；bash=104、genui=105，Fuse=106 */
 export const FUSE_SECTION_ORDER = 106
 
-/** 页面级组件词汇（白名单，与 genui 的对话内卡片互补：Fuse 管页面级 UI 产物） */
-export const FUSE_COMPONENT_TYPES = [
-  // 页面容器
-  'page', 'card', 'grid', 'row', 'col', 'nav', 'header', 'footer', 'section', 'tabs', 'hero',
-  // 展示
-  'text', 'badge', 'stat', 'list', 'table', 'divider', 'avatar', 'chart', 'steps',
-  // 表单
-  'form', 'input', 'select', 'textarea', 'checkbox', 'radio', 'button', 'link',
-]
-
-/** 页面类型（fence 根 type）：语义化页面模板，渲染器按模板布局 */
-export const FUSE_PAGE_KINDS = [
-  'login_form', 'signup_form', 'dashboard', 'settings_page', 'table_page',
-  'landing_page', 'profile_card', 'pricing_page', 'modal', 'form',
-]
+/**
+ * 校验规则（页面类型 / 组件白名单 / 容器递归 / tabs 递归 / 预算 60 / 深度 8 / 主题）
+ * 一律来自 spec-validator.mjs —— 它与 client.js 的 `#region spec-validator (generated)`
+ * 生成区间是同一段源码，宿主与浏览器半区不再各抄一份（历史上两侧手抄，出现过
+ * 「宿主放行、前端拒绝」的判定分裂）。此处只做转出，公开 API 名字保持不变。
+ */
+export {
+  FUSE_PAGE_KINDS,
+  FUSE_COMPONENT_TYPES,
+  FUSE_CONTAINER_TYPES,
+  FUSE_MAX_NODES,
+  FUSE_MAX_DEPTH,
+  themeNamesFromConfig,
+}
 
 /** 允许的交互动作名（回传给 Agent 的 [fuse-action] / [fuse-inspect]） */
 export const FUSE_ACTION_PREFIX = '[fuse-action]'
 export const FUSE_INSPECT_PREFIX = '[fuse-inspect]'
-
-// ⚠ 校验预算：必须与 client.js 的 MAX_NODES / MAX_DEPTH 保持一致。两侧不同构时，
-// 宿主会报「可安全渲染」而浏览器端渲染失败（或反之），规格可信度崩塌。
-/** 节点预算：全部节点（含嵌套容器）计数上限 */
-export const FUSE_MAX_NODES = 60
-/** 最大嵌套深度 */
-export const FUSE_MAX_DEPTH = 8
-
-/** 组件容器（items/components 是组件树，需要递归校验）——与 client.js 同期维护 */
-const COMPONENT_CONTAINERS = new Set(['page', 'card', 'grid', 'row', 'col', 'section', 'form'])
-
-/** 判断值是否为可递归的组件节点对象 */
-function isComponentNode(v) {
-  return v !== null && typeof v === 'object' && !Array.isArray(v)
-}
 
 // ---------- 配置加载（theme.json / code-style.json） ----------
 
@@ -85,6 +79,22 @@ function readConfigJson(name) {
 
 const themeConfig = readConfigJson('theme.json')
 const codeStyleConfig = readConfigJson('code-style.json')
+
+/** theme.json 的主题名清单（宿主校验与 /api/fuse/config 共用同一解析口径） */
+const THEME_NAMES = themeNamesFromConfig(themeConfig)
+
+/** 宿主侧校验器：与浏览器半区共用同一套规则，只有主题名取自 theme.json */
+const validateHostSpec = createHostValidator(THEME_NAMES)
+
+/**
+ * 校验 dsh-fuse 规格（白名单 + 结构 + 预算 + 主题），返回错误列表（空数组 = 通过）。
+ * 规则实现位于 spec-validator.mjs；本函数只负责注入宿主已知的主题清单。
+ * @param {unknown} spec dsh-fuse fence 的 JSON 规格
+ * @returns {string[]}
+ */
+export function validateFuseSpec(spec) {
+  return validateHostSpec(spec)
+}
 
 /** 令牌摘要：把 theme.json 压成模型可见的紧凑文本（token 敏感） */
 function summarizeTheme() {
@@ -197,77 +207,6 @@ const VALIDATE_TOOL = {
     const errors = validateFuseSpec(spec)
     return { ok: errors.length === 0, errors }
   },
-}
-
-/** 校验 dsh-fuse 规格（白名单 + 结构 + 预算），返回错误列表（空=通过） */
-export function validateFuseSpec(spec) {
-  const errors = []
-  if (spec === null || typeof spec !== 'object' || Array.isArray(spec)) {
-    return ['规格必须是 JSON 对象']
-  }
-  const kind = spec.type
-  if (!FUSE_PAGE_KINDS.includes(kind)) {
-    errors.push(`未知页面类型 "${kind}"，可选：${FUSE_PAGE_KINDS.join(' / ')}`)
-  }
-  if (spec.theme !== undefined && !(themeConfig?.themes ?? {})[spec.theme]) {
-    errors.push(`未知主题 "${spec.theme}"，可选：${Object.keys(themeConfig?.themes ?? {}).join(' / ')}`)
-  }
-  // 产品上下文（可选）：声明产品/受众/任务，仅允许对象形态，字段不强制
-  if (spec.context !== undefined && (spec.context === null || typeof spec.context !== 'object' || Array.isArray(spec.context))) {
-    errors.push('context 必须是对象（product/audience/task 之一或多个）')
-  }
-  const comps = spec.components
-  if (!Array.isArray(comps)) {
-    errors.push('components 必须是数组')
-    return errors
-  }
-  if (comps.length === 0) errors.push('components 不能为空')
-  let count = 0
-  let budgetHit = false
-  // walk 与 client.js 的 validateSpec 同构（白名单 / 容器递归 / tabs 内容递归 / 预算 / 深度）
-  const walk = (node, depth) => {
-    if (budgetHit) return
-    count++
-    // 节点预算：超限即报错（含嵌套计数），避免「宿主放行 → 前端拒绝」的判定分裂
-    if (count > FUSE_MAX_NODES) {
-      budgetHit = true
-      errors.push(`节点数超过 ${FUSE_MAX_NODES} 个上限（含嵌套容器），拒绝渲染`)
-      return
-    }
-    if (depth > FUSE_MAX_DEPTH) { errors.push(`嵌套超过 ${FUSE_MAX_DEPTH} 层`); return }
-    if (!isComponentNode(node)) {
-      errors.push('组件必须是 JSON 对象'); return
-    }
-    const t = node.type
-    if (!FUSE_COMPONENT_TYPES.includes(t)) {
-      errors.push(`未知组件类型 "${t}"，可选：${FUSE_COMPONENT_TYPES.join(' / ')}`)
-      return
-    }
-    // 组件容器（items 是组件树）才递归；nav/hero/list 的 items/actions 与 chart.data 是
-    // 数据结构（{text,active} / 按钮描述 / 数据点），不递归校验
-    if (COMPONENT_CONTAINERS.has(t)) {
-      const items = node.items ?? node.components
-      if (items === undefined) {
-        errors.push(`容器组件 "${t}" 需要 items/components 数组`)
-      } else if (Array.isArray(items)) {
-        for (const it of items) walk(it, depth + 1)
-      }
-    }
-    // tabs：items[].content / items[].items 是组件树（渲染器 renderNode 会递归渲染），
-    // 必须一并递归校验，否则 tab 内的非法组件能过宿主校验、却必被前端拒绝渲染
-    if (t === 'tabs') {
-      const tabs = Array.isArray(node.items) ? node.items : []
-      for (const it of tabs) {
-        if (!isComponentNode(it)) continue
-        const sub = it.content ?? it.items
-        if (sub === undefined) continue
-        if (!Array.isArray(sub)) { errors.push('tabs 项的 content/items 必须是数组'); continue }
-        for (const s of sub) walk(s, depth + 1)
-      }
-    }
-  }
-  for (const c of comps) walk(c, 1)
-  return errors
 }
 
 // ---------- 品牌色一致性断言（theme.json 的 brand 段号称单一事实来源） ----------

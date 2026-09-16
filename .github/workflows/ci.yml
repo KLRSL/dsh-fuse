@@ -35,6 +35,9 @@ jobs:
       - name: 发布一致性自检
         run: node scripts/release-check.mjs
 
+      - name: 校验器生成区间防漂移（client.js ↔ spec-validator.mjs）
+        run: npm run check:client
+
       - name: 单元测试
         run: npm test
 

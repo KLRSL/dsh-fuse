@@ -6,6 +6,11 @@
 //   window.__ModuleLoader__.load({ id, factory })
 // factory(require) 返回 cordis 客户端插件 { apply }。纯 DOM 实现，零依赖。
 //
+// ⚠ 生成区间：下方 `#region spec-validator (generated)` 区间由
+//   `npm run build:client`（scripts/build-client.mjs）从 spec-validator.mjs 注入，
+//   手改无效——校验规则请在 spec-validator.mjs 里改，然后重新生成。
+//   本文件仍是「单文件、零相对 import」形态，浏览器可直接加载。
+//
 // 能力（对应开发文档 §3.1 v1.0 核心功能）：
 //   1. dsh-fuse fence 渲染器：页面级 UI（登录页/仪表盘/表单…）渲染到对话流
 //   2. 走查器（Inspector）：点击预览元素 → getComputedStyle 采集 → 结构化
@@ -32,19 +37,124 @@ window.__ModuleLoader__.load({
     const STREAMING = '[data-streaming]'
     const SWEEP_MS = 1000
     const SNAPSHOT_CAP = 10            // 撤销历史环形缓冲上限（文档 §6.3）
-    // 节点预算：全部节点（含嵌套容器）计数上限，与宿主 index.mjs 的 FUSE_MAX_NODES
-    // 必须保持一致——两侧判定不同构就会出现「宿主说可安全渲染、前端却拒绝」的假阳性
-    const MAX_NODES = 60
-    const MAX_DEPTH = 8
 
     const CODE_BLOCK_SELECTORS = 'pre, .md-code-block, .code-block, .code-block-small, [data-lang]'
 
-    // 白名单组件词汇（与 host 侧 FUSE_COMPONENT_TYPES 一致）
-    const CONTAINER_TYPES = new Set(['page', 'card', 'grid', 'row', 'col', 'section', 'tabs', 'hero', 'nav', 'header', 'footer', 'form'])
-    const DISPLAY_TYPES = new Set(['text', 'badge', 'stat', 'list', 'table', 'divider', 'avatar', 'chart', 'steps'])
-    const FORM_TYPES = new Set(['input', 'select', 'textarea', 'checkbox', 'radio', 'button', 'link'])
-    const ALL_TYPES = new Set([...CONTAINER_TYPES, ...DISPLAY_TYPES, ...FORM_TYPES])
-    const PAGE_KINDS = new Set(['login_form', 'signup_form', 'dashboard', 'settings_page', 'table_page', 'landing_page', 'profile_card', 'pricing_page', 'modal', 'form'])
+    // #region spec-validator (generated) — do not edit
+// 来源：spec-validator.mjs（单一事实来源）；本区间由 npm run build:client 生成，手改无效
+    // ▼▼▼ 以下代码块被 scripts/build-client.mjs 逐字节提取并注入 client.js ▼▼▼
+    // （浏览器直接执行：禁用 ESM import/export，禁止引用模块作用域外的标识符）
+    const FUSE_PAGE_KINDS = [
+      'login_form', 'signup_form', 'dashboard', 'settings_page', 'table_page',
+      'landing_page', 'profile_card', 'pricing_page', 'modal', 'form',
+    ]
+
+    const FUSE_COMPONENT_TYPES = [
+      'page', 'card', 'grid', 'row', 'col', 'nav', 'header', 'footer', 'section', 'tabs', 'hero',
+      'text', 'badge', 'stat', 'list', 'table', 'divider', 'avatar', 'chart', 'steps',
+      'form', 'input', 'select', 'textarea', 'checkbox', 'radio', 'button', 'link',
+    ]
+
+    // 容器组件（items/components 是组件树）才递归；nav/hero/header/footer/tabs 的 items
+    // 是数据结构（导航项/按钮描述/tab 描述），chart.data 是数据点，都不递归校验
+    const FUSE_CONTAINER_TYPES = ['page', 'card', 'grid', 'row', 'col', 'section', 'form']
+
+    /** 节点预算：全部节点（含嵌套容器与 tabs 内容）计数上限 */
+    const FUSE_MAX_NODES = 60
+    /** 最大嵌套深度 */
+    const FUSE_MAX_DEPTH = 8
+
+    /** 判断值是否为可递归的组件节点对象 */
+    const isFuseComponentNode = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+    /** 已知主题名集合：空集合 = 不做主题校验（令牌未就绪时放行，避免假阳性） */
+    const toFuseThemeSet = (themeNames) => {
+      const set = new Set()
+      if (typeof themeNames === 'string') set.add(themeNames)
+      else if (Array.isArray(themeNames) || themeNames instanceof Set) for (const n of themeNames) set.add(n)
+      return set
+    }
+
+    /** 从 /api/fuse/config 风格的载荷里取主题名（宿主与前端共用同一解析口径） */
+    const themeNamesFromConfig = (payload) => {
+      const themes = payload?.themes
+      if (!themes || typeof themes !== 'object') return []
+      return Object.keys(themes)
+    }
+
+    /**
+     * 校验 dsh-fuse 规格：白名单（页面类型 / 组件 / 主题）+ 结构 + 容器递归 + 预算。
+     * @param {unknown} spec 围栏 JSON 规格（对象）
+     * @param {{ themeNames?: Iterable<string>|string|null }} [options] 已知主题名；缺省/空 = 跳过
+     * @returns {string[]} 错误列表（空数组 = 通过）
+     */
+    const validateFuseSpec = (spec, options) => {
+      const errors = []
+      if (spec === null || typeof spec !== 'object' || Array.isArray(spec)) {
+        return ['规格必须是 JSON 对象']
+      }
+      if (!FUSE_PAGE_KINDS.includes(spec.type)) {
+        errors.push(`未知页面类型 "${spec.type}"，可选：${FUSE_PAGE_KINDS.join(' / ')}`)
+      }
+      const themeSet = toFuseThemeSet(options ? options.themeNames : undefined)
+      if (spec.theme !== undefined && themeSet.size > 0 && !themeSet.has(spec.theme)) {
+        errors.push(`未知主题 "${spec.theme}"，可选：${[...themeSet].join(' / ')}`)
+      }
+      // 产品上下文（可选）：声明产品/受众/任务，仅允许对象形态，字段不强制
+      if (spec.context !== undefined && !isFuseComponentNode(spec.context)) {
+        errors.push('context 必须是对象（product/audience/task 之一或多个）')
+      }
+      const comps = spec.components
+      if (!Array.isArray(comps)) {
+        errors.push('components 必须是数组')
+        return errors
+      }
+      if (comps.length === 0) errors.push('components 不能为空')
+      let count = 0
+      let budgetHit = false
+      const walk = (node, depth) => {
+        if (budgetHit) return
+        count++
+        // 节点预算：超限即报错并拒绝整份规格（含嵌套计数）
+        if (count > FUSE_MAX_NODES) {
+          budgetHit = true
+          errors.push(`节点数超过 ${FUSE_MAX_NODES} 个上限（含嵌套容器），拒绝渲染`)
+          return
+        }
+        if (depth > FUSE_MAX_DEPTH) { errors.push(`嵌套超过 ${FUSE_MAX_DEPTH} 层`); return }
+        if (!isFuseComponentNode(node)) {
+          errors.push('组件必须是 JSON 对象'); return
+        }
+        const t = node.type
+        if (!FUSE_COMPONENT_TYPES.includes(t)) {
+          errors.push(`未知组件类型 "${t}"，可选：${FUSE_COMPONENT_TYPES.join(' / ')}`)
+          return
+        }
+        if (FUSE_CONTAINER_TYPES.includes(t)) {
+          const items = node.items ?? node.components
+          if (items === undefined) {
+            errors.push(`容器组件 "${t}" 需要 items/components 数组`)
+          } else if (Array.isArray(items)) {
+            for (const it of items) walk(it, depth + 1)
+          }
+        }
+        // tabs：items[].content / items[].items 是组件树（渲染器 renderNode 会递归渲染），
+        // 必须一并递归校验，否则 tab 内的非法组件能过预检、却必被渲染器拒绝
+        if (t === 'tabs') {
+          const tabs = Array.isArray(node.items) ? node.items : []
+          for (const it of tabs) {
+            if (!isFuseComponentNode(it)) continue
+            const sub = it.content ?? it.items
+            if (sub === undefined) continue
+            if (!Array.isArray(sub)) { errors.push('tabs 项的 content/items 必须是数组'); continue }
+            for (const s of sub) walk(s, depth + 1)
+          }
+        }
+      }
+      for (const c of comps) walk(c, 1)
+      return errors
+    }
+// #endregion spec-validator (generated)
 
     // 走查高亮色阶（文档 §6.2）：黄=已选中 蓝=采集中 紫=修正中 红=失败
     const INSPECT_COLORS = { selected: '#FACC15', collecting: '#3B82F6', fixing: '#8B5CF6', failed: '#EF4444' }
@@ -284,67 +394,37 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
       try { return isPlainObject(JSON.parse(t)) } catch { return false }
     }
 
-    /** 白名单校验（与 host validateFuseSpec 同构，浏览器端预检）
-        ⚠ 两侧必须同步：index.mjs 的 validateFuseSpec 是同一套规则（白名单 / 容器递归 /
-        tabs 内容递归 / 节点预算 / 嵌套深度），任何一侧改动都要同步另一侧；
-        唯一有意的差异：宿主额外校验 theme 是否在白名单内（前端在令牌未就绪时不做主题校验，
-        未知主题回落 default 渲染），方向上只会更严，不会出现「宿主放行、前端失败」 */
+    /**
+     * 规格校验：唯一的实现是上面的生成区间（来源 spec-validator.mjs），宿主
+     * validate_fuse_spec 与这里调用的是同一份规则——白名单 / 容器递归 /
+     * tabs 内容递归 / 节点预算 60 / 嵌套深度 8 / theme 白名单，两侧判定不再可能分裂。
+     * 字段名保持 `t.content` / `t.items` 的向后兼容读取。
+     */
     function validateSpec(spec) {
-      const errors = []
-      if (!isPlainObject(spec)) return ['规格必须是 JSON 对象']
-      if (!PAGE_KINDS.has(spec.type)) errors.push(`未知页面类型 "${spec.type}"`)
-      const comps = spec.components
-      if (!Array.isArray(comps)) return [...errors, 'components 必须是数组']
-      let count = 0
-      let budgetHit = false
-      // 组件容器（items 是组件树）才递归；nav/hero/list 的 items/actions 与 chart.data
-      // 是数据结构（{text,active} / 按钮描述 / 数据点），不递归校验
-      const COMPONENT_CONTAINERS = new Set(['page', 'card', 'grid', 'row', 'col', 'section', 'form'])
-      const walk = (node, depth) => {
-        if (budgetHit) return
-        count++
-        // 节点预算：超限必须报错并拒绝渲染整份规格（此前只累加计数、静默丢弃子树）
-        if (count > MAX_NODES) {
-          budgetHit = true
-          errors.push(`节点数超过 ${MAX_NODES} 个上限（含嵌套容器），拒绝渲染`)
-          return
-        }
-        if (depth > MAX_DEPTH) { errors.push(`嵌套超过 ${MAX_DEPTH} 层`); return }
-        if (!isPlainObject(node)) { errors.push('组件必须是 JSON 对象'); return }
-        if (!ALL_TYPES.has(node.type)) { errors.push(`未知组件类型 "${node.type}"`); return }
-        if (COMPONENT_CONTAINERS.has(node.type)) {
-          const items = node.items ?? node.components
-          if (items === undefined) errors.push(`容器组件 "${node.type}" 需要 items/components 数组`)
-          else if (Array.isArray(items)) for (const it of items) walk(it, depth + 1)
-        }
-        // tabs：items[].content / items[].items 是组件树（渲染器会递归渲染），必须一并校验，
-        // 否则 tab 内的非法 type 会「预检通过 → 渲染成占位壳」（宿主侧同一段逻辑）
-        if (node.type === 'tabs') {
-          const tabs = Array.isArray(node.items) ? node.items : []
-          for (const it of tabs) {
-            if (!isPlainObject(it)) continue
-            const sub = it.content ?? it.items
-            if (sub === undefined) continue
-            if (!Array.isArray(sub)) { errors.push('tabs 项的 content/items 必须是数组'); continue }
-            for (const s of sub) walk(s, depth + 1)
-          }
-        }
-      }
-      for (const c of comps) walk(c, 1)
-      if (comps.length === 0) errors.push('components 不能为空')
-      return errors
+      return validateFuseSpec(spec, { themeNames: currentThemeNames() })
     }
 
     // ---------- 主题令牌加载 ----------
     let THEMES = null
     let themeLoad = null
+    /** 令牌 API 返回的主题名（未知主题校验用；API 未就绪时为空 = 跳过主题校验，
+        与宿主「拿不到主题清单就不报未知主题」的口径一致） */
+    let CONFIG_THEME_NAMES = []
+    /** 当前已知主题名（校验器 themeNames 入参的取数口径） */
+    function currentThemeNames() {
+      return CONFIG_THEME_NAMES
+    }
     /** 拉取 /api/fuse/config 令牌（单次请求，结果缓存；失败也缓存，避免反复重试） */
     function loadThemes() {
       if (THEMES) return Promise.resolve(THEMES)
       if (!themeLoad) {
         themeLoad = fetch(CONFIG_API, { headers: { accept: 'application/json' } })
           .then((res) => (res.ok ? res.json() : null))
-          .then((data) => { THEMES = data?.themes ?? null; return THEMES })
+          .then((data) => {
+            THEMES = data?.themes ?? null
+            CONFIG_THEME_NAMES = themeNamesFromConfig(data)
+            return THEMES
+          })
           .catch(() => { THEMES = null; return null })
       }
       return themeLoad
@@ -1003,7 +1083,7 @@ html[data-dsh-theme="dark"] .fuse-card:hover{border-color:color-mix(in srgb,var(
           // ② 结构无关兜底：内容本身是合法 dsh-fuse 规格（新前端哈希化 class 也能拦到）
           const raw = b.tagName === 'PRE' ? b.textContent : (b.querySelector('pre')?.textContent ?? b.textContent)
           const spec = parseSpec(raw ?? '')
-          return spec !== null && PAGE_KINDS.has(spec.type) && Array.isArray(spec.components)
+          return spec !== null && FUSE_PAGE_KINDS.includes(spec.type) && Array.isArray(spec.components)
         })
       }
 

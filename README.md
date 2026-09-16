@@ -4,7 +4,7 @@
 >
 > [简体中文](README.md) · [English](README.en.md)
 
-> **v1.2.2** · MIT License · DSH ≥ 0.1.1-rc.2（已适配 0.1.5-rc.1）· Node `^22.19.0 || >=24.0.0`
+> **v1.2.3** · MIT License · DSH ≥ 0.1.1-rc.2（已适配 0.1.5-rc.1）· Node `^22.19.0 || >=24.0.0`
 
 dsh-fuse 是 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）插件，也是 **ui-aesthetics 技能的插件化升级版**：把审美规范数值化为设计令牌（`theme.json`）、把代码规约沉淀为 `code-style.json`，让生成的页面级 UI **从构造上就正确**，并通过闭环走查器把细节微调到像素级。
 
@@ -277,6 +277,7 @@ node scripts/release-check.mjs
 
 | 版本 | 日期 | 要点 |
 | --- | --- | --- |
+| **v1.2.3** | 2026-09-17 | 规格校验器抽为**单一事实来源** `spec-validator.mjs`：宿主 `index.mjs` 改为 import（删掉自己那份副本），浏览器半区 `client.js` 的生成区间由 `npm run build:client`（`scripts/build-client.mjs`，逐字节复制 + 统一缩进）注入，`--check` 与单测双重防漂移——根治「宿主放行、前端拒绝」的判定分裂；新增差分对拍（24 条样本：白名单 / 容器与 tabs 递归 / 深度与预算边界 / 主题），宿主与前端判定零分歧；`spec-validator.mjs` 纳入发布白名单 |
 | **v1.2.2** | 2026-09-16 | 安全与一致性修复：`steps` 的 title/desc 不再用 `innerHTML` 拼接（改 DOM 节点 + `textContent`，堵住 fence 注入路径）；节点预算真正生效——声明后从未使用的 `MAX_NODES` 改为 60 并在超限时报错拒绝渲染，宿主与渲染器两侧同构；宿主校验补上 `tabs.items[].content` 递归（此前 tab 内非法组件能过宿主校验却必被前端拒绝）；撤销栈只收结构完整且非流式的快照并与上一条 `raw` 去重（中间态不再挤爆 10 格）；流式重渲染用 requestAnimationFrame 合并（120ms 尾沿兜底）；`parseSpec` 括号补齐改按字符串状态机；补 `page` 容器的渲染分支；首帧令牌未就绪时异步补齐；窗口宽度文档改为「继承对话宽度（实测 680–920px）」；`test` 脚本改为跨平台 glob；`dsh-system-prompt` 标记为 optional peer |
 | **v1.2.1** | 2026-09-05 | 适配 DSH `0.1.2-rc.1` 前端：`registerFenceRenderer` 契约探测（宿主提供扩展点时直挂，缺失时回退 DOM 通道）+ 插件 UI 深色适配（DSH 主题跟随，双通道探测 + MutationObserver）；品牌色（蓝紫 · 设计渲染）写入 theme.json 的 `brand` 段作单一事实来源 |
 | **v1.2.0** | 2026-09-05 | 插件自身管理 UI 按「骨架/血肉/呼吸」重构：预览卡壳、工具栏、设置页全部令牌驱动（`--fs-*` 变量取自 theme.json），清除 `dsw-alias` 硬依赖；修复 React key 警告；类名零变更，测试全绿 |
