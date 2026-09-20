@@ -1,7 +1,7 @@
 {
   "name": "dsh-fuse",
-  "version": "1.2.3",
-  "description": "Fuse v1.2.3 — UI 设计 + 代码规范一体化插件（ui-aesthetics 技能升级版）：设计令牌 theme.json（含品牌色单一事实来源）+ 代码规范 code-style.json + dsh-fuse fence 页面级渲染 + 走查器像素级微调 + 撤销历史 + 渲染状态回传（Spec valid≠Render correct）+ 通用适配流程与风格扩展；插件 UI 壳按功能设计语言（设计工作台/蓝紫）+ 深色模式适配（DSH 主题 dsw-alias 跟随，双通道探测）。v1.2.3：规格校验器抽为 spec-validator.mjs 单一事实来源——宿主 import、client.js 由 npm run build:client 注入生成区间，--check 与单测双重防漂移；v1.2.2：steps 去掉 innerHTML 注入、节点预算 60 真正生效且宿主/前端同构（含 tabs 内容递归）、撤销快照只收完整非流式状态",
+  "version": "1.2.4",
+  "description": "Fuse v1.2.4 — 根级 actions 渲染（主操作不再消失）+ 按钮 label/tone 字段兼容 + 点击不再双发指令 + 对比度守卫（WCAG，修正 5 处令牌违规）+ 令牌漂移守卫 + 客户端 bundle 迁入 lib/； UI 设计 + 代码规范一体化插件（ui-aesthetics 技能升级版）：设计令牌 theme.json（含品牌色单一事实来源）+ 代码规范 code-style.json + dsh-fuse fence 页面级渲染 + 走查器像素级微调 + 撤销历史 + 渲染状态回传（Spec valid≠Render correct）+ 通用适配流程与风格扩展；插件 UI 壳按功能设计语言（设计工作台/蓝紫）+ 深色模式适配（DSH 主题 dsw-alias 跟随，双通道探测）。v1.2.3：规格校验器抽为 spec-validator.mjs 单一事实来源——宿主 import、client.js 由 npm run build:client 注入生成区间，--check 与单测双重防漂移；v1.2.2：steps 去掉 innerHTML 注入、节点预算 60 真正生效且宿主/前端同构（含 tabs 内容递归）、撤销快照只收完整非流式状态",
   "type": "module",
   "main": "index.mjs",
   "exports": {
