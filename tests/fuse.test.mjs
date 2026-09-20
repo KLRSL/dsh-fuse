@@ -138,7 +138,7 @@ test('theme.json：brand 段与 themes 令牌一致（单一事实来源不漂�
 // client.js 是浏览器半区 bundle（__ModuleLoader__ 契约），这里用 jsdom + vm 载入真实源码、
 // 走 DOM 渲染通道做行为验证（与 tests/test-client.mjs 同款手法，断言并入 node:test）
 
-const CLIENT_SRC = path.join(__dirname, '..', 'client.js')
+const CLIENT_SRC = path.join(__dirname, '..', 'lib', 'client.js')
 let clientEnv = null
 
 async function loadClient() {

@@ -6,13 +6,13 @@
   "main": "index.mjs",
   "exports": {
     ".": "./index.mjs",
-    "./client": "./client.js",
+    "./client": "./lib/client.js",
     "./package.json": "./package.json"
   },
   "files": [
     "index.mjs",
     "spec-validator.mjs",
-    "client.js",
+    "lib",
     "config",
     "cordis.patch.yml",
     "SKILL.md",

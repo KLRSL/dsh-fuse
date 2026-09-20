@@ -35,7 +35,7 @@ import {
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 export const REPO_ROOT = path.resolve(HERE, '..')
 export const VALIDATOR_FILE = path.join(REPO_ROOT, 'spec-validator.mjs')
-export const CLIENT_FILE = path.join(REPO_ROOT, 'client.js')
+export const CLIENT_FILE = path.join(REPO_ROOT, 'lib', 'client.js')
 
 /** 默认缩进：client.js 的闭包层级（4 空格）；生成时按现有内容探测并保持 */
 export const DEFAULT_INDENT = '    '
