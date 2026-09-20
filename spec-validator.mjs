@@ -123,7 +123,11 @@ const validateFuseSpec = (spec, options) => {
     errors.push(`未知页面类型 "${spec.type}"，可选：${FUSE_PAGE_KINDS.join(' / ')}`)
   }
   const themeSet = toFuseThemeSet(options ? options.themeNames : undefined)
-  if (spec.theme !== undefined && themeSet.size > 0 && !themeSet.has(spec.theme)) {
+  // v1.2.5（自审 F5）：README 与 SKILL 都写「theme 必填、不许白板」，而这里此前只在"提供了 theme"
+  // 时才校验 → 缺 theme 的规格照样按默认主题渲染，规范形同虚设。现在缺 theme 直接判错。
+  if (spec.theme === undefined || spec.theme === null || spec.theme === '') {
+    errors.push(`缺少必填字段 theme（可选：${[...themeSet].join(' / ') || 'default / apple / dark'}）`)
+  } else if (themeSet.size > 0 && !themeSet.has(spec.theme)) {
     errors.push(`未知主题 "${spec.theme}"，可选：${[...themeSet].join(' / ')}`)
   }
   // 产品上下文（可选）：声明产品/受众/任务，仅允许对象形态，字段不强制

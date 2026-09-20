@@ -47,9 +47,9 @@ test('未知主题被拒绝', () => {
 })
 
 test('context 产品上下文：合法对象通过，非法形态被拒绝', () => {
-  const ok = { type: 'dashboard', context: { product: '网页', audience: '个人用户', task: '查看数据' }, components: [{ type: 'text', content: 'x' }] }
+  const ok = { type: 'dashboard', theme: 'default', context: { product: '网页', audience: '个人用户', task: '查看数据' }, components: [{ type: 'text', content: 'x' }] }
   assert.deepEqual(validateFuseSpec(ok), [])
-  const bad = { type: 'dashboard', context: 'web', components: [{ type: 'text', content: 'x' }] }
+  const bad = { type: 'dashboard', theme: 'default', context: 'web', components: [{ type: 'text', content: 'x' }] }
   assert.ok(validateFuseSpec(bad).some((e) => e.includes('context')))
 })
 
@@ -70,6 +70,7 @@ test('嵌套超过 8 层被拒绝', () => {
 test('容器组件带 items 递归校验', () => {
   const spec = {
     type: 'dashboard',
+    theme: 'default',
     components: [
       { type: 'grid', cols: 2, items: [{ type: 'stat', label: 'A', value: '1' }] },
       { type: 'card', title: 'C', items: [{ type: 'badge', label: 'ok' }] },
@@ -235,6 +236,7 @@ test('节点预算 60（含嵌套容器）：宿主与渲染器一致报错并�
 test('tabs 内的非法组件被宿主拒绝（与前端同构的递归校验）', () => {
   const bad = {
     type: 'dashboard',
+    theme: 'default',
     components: [{
       type: 'tabs',
       items: [
@@ -245,7 +247,7 @@ test('tabs 内的非法组件被宿主拒绝（与前端同构的递归校验）
   }
   const errs = validateFuseSpec(bad)
   assert.ok(errs.some((e) => e.includes('未知组件类型') && e.includes('magic-widget')), `宿主必须递归校验 tab 内容：${JSON.stringify(errs)}`)
-  const ok = { type: 'dashboard', components: [{ type: 'tabs', items: [{ label: '概览', content: [{ type: 'stat', label: 'A', value: '1' }] }] }] }
+  const ok = { type: 'dashboard', theme: 'default', components: [{ type: 'tabs', items: [{ label: '概览', content: [{ type: 'stat', label: 'A', value: '1' }] }] }] }
   assert.deepEqual(validateFuseSpec(ok), [], '合法 tab 内容不得误报')
 })
 
