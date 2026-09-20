@@ -119,3 +119,33 @@ test('没有根级 actions 的规格不出现空操作条（不回归）', async
   assert.ok(block.querySelector('.fuse-card') || block.textContent.length > 0, '规格仍被渲染')
   assert.equal(block.querySelector('.fuse-root-actions'), null, '无 actions 时不应出现操作条')
 })
+
+test('chart：donut 画真环（conic-gradient + 图例），不再退化成 badge 串', async () => {
+  const { document } = await loadClient()
+  insertFence(document, JSON.stringify({
+    type: 'dashboard',
+    theme: 'default',
+    components: [{ type: 'chart', kind: 'donut', data: [{ label: '已用', value: 30 }, { label: '空闲', value: 70 }] }],
+  }))
+  await tick()
+  const ring = document.querySelector('.fuse-donut .ring')
+  assert.ok(ring, 'donut 应渲染出 .fuse-donut .ring')
+  assert.ok(String(ring.style.background).includes('conic-gradient'), '环必须是 conic-gradient 实色占比，而不是 badge 串')
+  const items = document.querySelectorAll('.fuse-donut .legend .item')
+  assert.equal(items.length, 2, '图例条目数应等于数据条数')
+})
+
+test('chart：line 画真折线（SVG polyline，点数与数据一致）', async () => {
+  const { document } = await loadClient()
+  insertFence(document, JSON.stringify({
+    type: 'dashboard',
+    theme: 'default',
+    components: [{ type: 'chart', kind: 'line', data: [{ label: '1月', value: 3 }, { label: '2月', value: 9 }, { label: '3月', value: 5 }] }],
+  }))
+  await tick()
+  const poly = document.querySelector('.fuse-linewrap svg polyline')
+  assert.ok(poly, 'line 应渲染出 SVG polyline')
+  const pts = String(poly.getAttribute('points')).trim().split(/\s+/)
+  assert.equal(pts.length, 3, '折线点数应等于数据条数')
+  assert.equal(poly.getAttribute('fill'), 'none', '折线不应填充')
+})
