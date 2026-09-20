@@ -192,7 +192,7 @@ The answers decide `theme`, density, and hierarchy — then write the fence. Rec
 
 A new look (cute, magazine, etc.) is a **new theme in `theme.json`** — reuse the 4/8px grid and type scale, keep ≤ 3 colors + neutrals, and change only primary color / radii / shadows. Never rewrite the skeleton & breath rules; no code changes needed — the renderer picks up new themes dynamically.
 
-> **Shell vs. spec themes are decoupled.** The plugin's own chrome (preview card, toolbar, settings page) follows the **DSH theme** via `--fs-shell-*` tokens (with `--dsw-alias-*` / `data-ds-dark-theme` detection); the rendered **spec** follows the fence's `theme` via `--fs-*` tokens scoped to the card root.
+> **Where the shell ends and the artifact begins (restated precisely in v1.2.5): colours are decoupled, geometry is shared.** The plugin's own chrome (preview card, toolbar, settings page) follows the **DSH theme** via `--fs-shell-*` tokens (with `--dsw-alias-*` / `data-ds-dark-theme` detection), and `applyTheme` only overwrites the artifact colour tokens (`--fs-*`) — never `--fs-shell-*`. Spacing / radius / type scale (`--fs-space-*`, `--fs-radius-*`, `--fs-fs-*`, all defined in `config/theme.json`) are deliberately **shared design tokens**: chrome and artifact sit on the same 4/8px grid and type scale, so a fence theme that changes those numbers (apple uses radii 10/14/18) also moves the chrome. That is the intended design, not a leak. The rendered **spec** follows the fence's `theme` via `--fs-*` tokens scoped to the card root.
 
 ## Walkthrough & Refinement
 

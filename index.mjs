@@ -121,12 +121,25 @@ function summarizeCodeStyle() {
   const n = codeStyleConfig.naming ?? {}
   const f = codeStyleConfig.formatting ?? {}
   const s = codeStyleConfig.syntax ?? {}
-  return [
+  const lines = [
     `命名 ${n.variables ?? '-'}/${n.components ?? '-'}/${n.directories ?? '-'}（变量/组件/目录）`,
     `格式化 缩进${f.indentSize ?? 2}空格 · 行长≤${f.maxLineLength ?? 100} · ${f.quoteStyle ?? 'single'}引号 · ${f.semicolons ? '加分号' : '不加分号'}`,
     `语法 ${s.preferConst ? 'const 优先' : ''}${s.forbidVar ? '·禁 var' : ''} · TS strict`,
-    `CSS 只用设计令牌取色/圆角，禁止硬编码十六进制`,
-  ].join('\n')
+  ]
+  // v1.2.5（自审 F10）：此前只渲染上面三段 + 一行**硬编码**的 CSS 规则，
+  // 其余段（css / react / structure / a11y …）被静默丢弃——而设置页展示的是完整 code-style.json，
+  // 于是"改了 css/react 段却没有任何效果"。现在：其余段一律按 JSON 紧凑带出（含 css 段本身）。
+  const HANDLED = new Set(['naming', 'formatting', 'syntax'])
+  const TRIVIAL = new Set(['$comment', 'comment', 'version', 'name'])
+  for (const [key, value] of Object.entries(codeStyleConfig)) {
+    if (HANDLED.has(key) || TRIVIAL.has(key) || value === null || value === undefined) continue
+    let text = typeof value === 'string' ? value : JSON.stringify(value)
+    text = String(text).replace(/\s+/g, ' ').trim()
+    if (!text) continue
+    if (text.length > 600) text = text.slice(0, 600) + '…'
+    lines.push(`${key}: ${text}`)
+  }
+  return lines.join('\n')
 }
 
 /** dsh-fuse fence 语言规范（注入系统指令，模型输出时必须遵守） */

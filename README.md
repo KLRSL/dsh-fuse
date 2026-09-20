@@ -192,7 +192,7 @@ dsh plugin --profile web add link:./dsh-fuse
 
 新风格（可爱风 / 杂志风…）= **在 `theme.json` 里新增主题**：复用 4/8px 栅格与字号阶梯，配色仍守「≤ 3 色 + 中性色」，只改主色 / 圆角 / 阴影——不推翻骨架与呼吸规则，渲染器动态生效，**无需改代码**。
 
-> **壳与产物解耦：** 插件自身 UI（预览卡、工具栏、设置页）跟随 **DSH 主题**（`--fs-shell-*` 令牌，经 `--dsw-alias-*` / `data-ds-dark-theme` 探测）；渲染**产物**跟随围栏的 `theme`（`--fs-*` 令牌，作用域在卡片根）。
+> **壳与产物的边界（v1.2.5 起精确表述）：颜色是解耦的**——插件自身 UI（预览卡、工具栏、设置页）跟随 **DSH 主题**（`--fs-shell-*` 令牌，经 `--dsw-alias-*` / `data-ds-dark-theme` 探测），而 `applyTheme` 只覆盖产物的 `--fs-*` 颜色令牌，从不动 `--fs-shell-*`；**间距/圆角/字号阶梯是共享的设计令牌**（`--fs-space-*` / `--fs-radius-*` / `--fs-fs-*`，见 `config/theme.json`），壳与产物刻意共用同一套 4/8px 栅格与字号阶梯，因此切换围栏主题时若主题改了这些数值（如 apple 的圆角 10/14/18），壳也会跟着变——这是设计意图，不是漏洞。渲染**产物**跟随围栏的 `theme`（`--fs-*` 令牌，作用域在卡片根）。
 
 ## 走查微调
 
@@ -268,7 +268,7 @@ node scripts/release-check.mjs
 
 ### 如何贡献
 
-1. **白名单与校验规则保持同步** —— `index.mjs`（`FUSE_COMPONENT_TYPES`、`FUSE_PAGE_KINDS`、`FUSE_MAX_NODES`/`FUSE_MAX_DEPTH`）与 `client.js`（`CONTAINER_TYPES`、`DISPLAY_TYPES`、`FORM_TYPES`、`PAGE_KINDS`、`MAX_NODES`/`MAX_DEPTH`）必须一致；容器递归集合与 `tabs.items[].content` 递归规则也必须两侧同构——否则会出现「宿主说可安全渲染、前端却渲染失败」的判定分裂。
+1. **白名单与校验规则只有一个来源（v1.2.3 起）** —— 规则全部在 `spec-validator.mjs`：宿主 `index.mjs` 直接 import，浏览器半区由 `npm run build:client` 注入生成区间，`--check` 与单测双重防漂移。**不要再手工同步两侧**（旧文档要求手抄，已作废）；要改规则就改 `spec-validator.mjs` 再跑构建。历史遗留的说明：`index.mjs`（`FUSE_COMPONENT_TYPES`、`FUSE_PAGE_KINDS`、`FUSE_MAX_NODES`/`FUSE_MAX_DEPTH`）与 `client.js`（`CONTAINER_TYPES`、`DISPLAY_TYPES`、`FORM_TYPES`、`PAGE_KINDS`、`MAX_NODES`/`MAX_DEPTH`）必须一致；容器递归集合与 `tabs.items[].content` 递归规则也必须两侧同构——否则会出现「宿主说可安全渲染、前端却渲染失败」的判定分裂。
 2. 新主题只加进 `config/theme.json`，**不改渲染器代码**。
 3. 行为变更必须保持 `--fs-shell-*`（跟随 DSH 主题）与 `--fs-*`（跟随围栏主题）两套令牌分离。
 4. 提交前跑完整测试矩阵；类名尽量保持稳定。
