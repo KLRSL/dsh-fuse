@@ -1,3 +1,5 @@
+
+
 # dsh-fuse
 
 > **页面级 UI 渲染插件**：自然语言描述 → 结构化规格围栏 → 真实页面 UI，并带像素级走查闭环。
@@ -149,7 +151,7 @@ dsh plugin --profile web add link:./dsh-fuse
 | `theme` | 是 | `theme.json` 中的主题名——不许输出白板规格 |
 | `title` | 否 | 页面 / 卡片标题 |
 | `context` | 否（推荐） | 适配四问的结论：`{ product, audience, task }`——渲染器不消费，但 Agent 自省与走查 diff 会用到 |
-| `actions` | 否 | 页面主操作：`[{ "action": "name", "label": "…", "tone": "primary\|ghost" }]` |
+| `actions` | 否 | 页面主操作：`[{ "action": "name", "label": "…", "tone": "primary|ghost" }]` |
 
 ### 交互动作回传
 
