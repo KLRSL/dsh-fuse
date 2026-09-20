@@ -4,5 +4,5 @@
 #                              + validate_fuse_spec 预检工具 + config API
 #   - browser side (client.js): dsh-fuse fence 页面级渲染器 + 走查器 + 撤销历史
 - insert:
-    - id: fuse
+    - id: dsh-fuse
       name: dsh-fuse
