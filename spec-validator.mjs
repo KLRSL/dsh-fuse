@@ -47,7 +47,7 @@ const SOURCE_TEXT = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8')
  */
 export const FUSE_COMPONENT_GROUPS = {
   container: ['page', 'card', 'grid', 'row', 'col', 'nav', 'header', 'footer', 'section', 'tabs', 'hero'],
-  display: ['text', 'badge', 'stat', 'list', 'table', 'divider', 'avatar', 'chart', 'steps'],
+  display: ['text', 'badge', 'stat', 'list', 'table', 'divider', 'avatar', 'chart', 'steps', 'loading', 'skeleton'],
   form: ['form', 'input', 'select', 'textarea', 'checkbox', 'radio', 'button', 'link'],
 }
 
@@ -77,7 +77,7 @@ const FUSE_PAGE_KINDS = [
 
 const FUSE_COMPONENT_TYPES = [
   'page', 'card', 'grid', 'row', 'col', 'nav', 'header', 'footer', 'section', 'tabs', 'hero',
-  'text', 'badge', 'stat', 'list', 'table', 'divider', 'avatar', 'chart', 'steps',
+  'text', 'badge', 'stat', 'list', 'table', 'divider', 'avatar', 'chart', 'steps', 'loading', 'skeleton',
   'form', 'input', 'select', 'textarea', 'checkbox', 'radio', 'button', 'link',
 ]
 

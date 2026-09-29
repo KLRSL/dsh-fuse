@@ -4,7 +4,7 @@
 >
 > [简体中文](README.md) · [English](README.en.md)
 
-> **v1.2.4** · MIT License · DSH ≥ 0.1.1-rc.2 (adapted for 0.1.5-rc.1) · Node `^22.19.0 || >=24.0.0`
+> **v1.3.0** · MIT License · DSH ≥ 0.1.1-rc.2 (adapted for **0.2.0-rc.2 (Desktop)**) · Node `^22.19.0 || >=24.0.0`
 
 **dsh-fuse** is a [DeepSeek Harness](https://github.com/deepseek-ai/dsh) (DSH) plugin — and the **plugin upgrade of the ui-aesthetics skill**: aesthetic rules are crystallized into design tokens (`theme.json`) and code rules into `code-style.json`, so generated page-level UI is **correct by construction** and can be refined down to the pixel through a closed-loop inspector.
 
@@ -31,7 +31,7 @@ Design philosophy: **rules are the skeleton, semantics are the flesh, restraint 
 | Design tokens | `theme.json`: default / apple / dark themes, CSS-variable mapping, pluggable new styles |
 | Design principles | Skeleton → flesh → breath; four-question adaptation (product / audience / task / medium) recorded in the root `context` field |
 | Code-style enforcement | `code-style.json` naming / formatting / syntax / CSS rules for every piece of generated code |
-| Dual-channel rendering | `registerFenceRenderer` extension point when the host provides one; DOM channel fallback on stock DSH |
+| DOM render channel | A `MutationObserver` claims `dsh-fuse` code blocks in the conversation and renders them (v1.3.0: 0.2.0-rc.2 has no `registerFenceRenderer` extension point — all 9004 files of the runtime were scanned — so the registry path was dead and removed per the official rule) |
 | Dark-mode ready | Plugin shell follows the DSH theme via dual-channel detection (`body[data-ds-dark-theme]` / `prefers-color-scheme` + `MutationObserver`) |
 
 ## Installation
@@ -55,9 +55,7 @@ dsh plugin --profile web add link:./dsh-fuse
 ### Verify
 
 1. **Host half** — after startup, the log shows `[dsh-fuse] 启动完成：系统指令 + validate_fuse_spec + /api/fuse/config`. The system prompt contains the Fuse section (`name: fuse`, `order: 106`), and the `validate_fuse_spec` tool is registered when the `tools` service is available.
-2. **Client half** — the browser console reports which channel attached:
-   - `[dsh-fuse] fence-registry 通道已挂载` (registry channel, contract host)
-   - `[dsh-fuse] fence-registry 扩展点不存在（原版 DSH）——启用 DOM 渲染通道` (DOM channel)
+2. **Client half** — the browser console reports: `[dsh-fuse] 使用 DOM 渲染通道（0.2.0-rc.2 无 fence-registry 扩展点）`
 3. **Config API** — `GET http://localhost:<port>/api/fuse/config` returns `{ themes, codeStyle, pageKinds, componentTypes }`.
 
 Then ask the model to "make a login page" — a rendered `dsh-fuse` preview card should appear directly in the conversation.
@@ -234,10 +232,13 @@ dsh-fuse/
 
 **Browser half (`client.js`)** — a zero-dependency pure-DOM renderer (loaded through `__ModuleLoader__`), with `installShellThemeSync()` for DSH-theme following and the inspector/undo machinery.
 
-**Dual-channel rendering** — both halves probe their host:
+**DOM render channel** — the client sweeps conversation code blocks (`pre`, `.md-code-block`, `[data-lang]`) carrying the `dsh-fuse` language tag with a `MutationObserver` and renders them (with a double-render guard so containers and nested `<pre>` are claimed exactly once).
 
-- *Registry channel:* when the host provides `registerFenceRenderer('dsh-fuse', …)` (DSH `0.1.2-rc.1` contract), the renderer attaches directly;
-- *DOM channel:* on stock DSH without the extension point, a `MutationObserver` sweeps conversation code blocks (`pre`, `.md-code-block`, `[data-lang]`) with the `dsh-fuse` language tag and renders them (with a double-render guard so containers and nested `<pre>` are claimed exactly once).
+> v1.3.0 note: a "registry channel" used to probe the host for a `registerFenceRenderer` extension point via
+> `require('@deepseek-ai/dsh-client-ui-primitives')`. That extension point **does not exist** anywhere in the
+> 0.2.0-rc.2 desktop runtime (all 9004 asar files scanned), and the official `references/practices.md` §UI rule 1
+> forbids a plugin from requiring any Harness Client package — both reasons point at removal. Only the DOM channel,
+> which is the path that actually runs, remains.
 
 **Width contract** — the rendered card uses `max-width: var(--dsh-chat-content-width, 748px)`: its width is inherited from the DSH conversation content width (**measured across a 680–920px range**, varying with window/sidebar; `748px` is only the fallback used when the variable is absent). It stays centered and composer-aligned, and never fills the viewport in full-screen mode.
 
@@ -277,6 +278,7 @@ Node `^22.19.0 || >=24.0.0` is required (see `engines`). Dev dependencies: `jsdo
 
 | Version | Date | Highlights |
 | --- | --- | --- |
+| **v1.3.0** | 2026-09-29 | **DSH 0.2.0-rc.2 adaptation + three-state coverage + style normalization**: (1) removed the forbidden `require('@deepseek-ai/dsh-client-ui-primitives')` and the registry channel that depended on it (no `registerFenceRenderer` in any of the runtime's 9004 files; official practices.md §UI rule 1 forbids requiring Harness Client packages), with `dsh.client.inject` cleaned up accordingly; (2) added whitelisted **`loading` / `skeleton` (lines 1–8, variant line/block)** components so the empty/loading/error triad is complete, wired identically across validator, renderer and both test suites; (3) normalized all styling onto the system: spacing only 4/8/12/16/20/24/40, type only 12/14/16/20/28/36/48, radius 4/8/12/999 (automated audit reports **0 violations**), plus `:focus-visible` rings and `prefers-reduced-motion` support. 35/35 tests plus the DOM harness pass |
 | **v1.2.4** | 2026-09-20 | **Three "named but never happens" fixes + two token guards**: ①the root-level `actions` field had **no reader at all** — the system instruction and README both tell the model to put primary actions there while the renderer only read `hero.actions`, so primary actions silently vanished; they now render as a `.fuse-root-actions` bar. ②Button field compatibility: the spec uses `label`/`tone` while the renderer only understood `text`/`style`, so spec-conformant buttons rendered **empty**; both spellings now work, and `.fuse-btn-triggered` finally has a visible style. ③Button clicks stop propagating, so one click no longer fires both `[fuse-action]` and the container `[fuse-inspect]`. ④New `tests/theme-contrast.test.mjs` (WCAG 2.1) that immediately exposed and fixed five real violations (default muted text 4.47→4.60, default/brand accent 2.77→3.11, apple warning, packer secondary 2.15→3.16). ⑤New `tests/theme-token-sync.test.mjs` drift guard, which caught the dark `--fs-shell-accent` disagreeing with theme.json. ⑥Compliance: client bundle moved to `lib/client.js`, entry id unified to the package name. 32 tests green |
 | **v1.2.3** | 2026-09-17 | Spec validation extracted into a **single source of truth**, `spec-validator.mjs`: the host (`index.mjs`) imports it (its own copy is gone) and the browser half (`client.js`) receives the generated block via `npm run build:client` (`scripts/build-client.mjs`, byte-for-byte copy with unified indentation); `--check` plus a unit test guard against drift, killing the "host accepts, client rejects" split for good; a new differential parity test (24 cases: whitelists, container/tabs recursion, depth and budget boundaries, themes) shows zero divergence between host and client; `spec-validator.mjs` added to the publish whitelist |
 | **v1.2.2** | 2026-09-16 | Security and consistency fixes: `steps` no longer builds `title`/`desc` via `innerHTML` (DOM nodes + `textContent` close a fence-injection path); the node budget actually takes effect — the never-enforced `MAX_NODES` is now 60 and exceeding it is an error that rejects the spec, with host and renderer behaving identically; host validation now recurses into `tabs.items[].content` (illegal components inside a tab used to pass host validation yet always fail in the renderer); the undo stack only records complete, non-streaming snapshots and de-duplicates consecutive identical `raw` (intermediate states no longer flood the 10 slots); streaming re-renders are coalesced with `requestAnimationFrame` (120ms trailing fallback); `parseSpec` completes brackets with a string-state machine; added the missing `page` container render branch; first-frame tokens are back-filled asynchronously; the width docs now say "inherits the conversation width (measured 680–920px)"; the `test` script uses a cross-platform glob; `dsh-system-prompt` is marked as an optional peer |

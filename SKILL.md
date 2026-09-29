@@ -7,6 +7,9 @@ description: |
   配套代码遵循 code-style.json 规范。页面类产物用 dsh-fuse，对话内小卡片仍用 dsh-ui。
   v1.1 融合「规则是骨架，语义是血肉，情绪是呼吸」设计原则 + 通用 UI/UX Prompt Framework：
   任何产品/媒介先做上下文分析再适配，风格可扩展，渲染状态可回传做 expected→observed diff。
+  v1.3.0：新增 `loading` / `skeleton` 两个白名单组件（补齐全空/加载/错误三态）；样式全面归位到
+  4/8px 栅格与字号阶梯（间距仅 4/8/12/16/20/24/40，字号仅 12/14/16/20/28/36/48，圆角 4/8/12/999），
+  并补键盘焦点环与 prefers-reduced-motion 适配。
 triggers:
   - "生成登录页"
   - "做一个仪表盘"
@@ -75,7 +78,7 @@ triggers:
 ### 组件词汇（白名单，只允许这些 type）
 
 - 容器：`page` `card` `grid`（cols） `row` `col` `section` `tabs`（items 带 label+content） `hero`（title/subtitle/actions） `nav`（items） `header`（title/subtitle） `footer`（text） `form`（items）
-- 展示：`text`（size: h1/h2/h3/body/caption/muted, content, center） `badge`（label, tone: success/warn/danger/accent） `stat`（label, value） `list`（items 字符串或 {title,desc}） `table`（columns, rows） `divider` `avatar`（name, color） `chart`（kind: bars/donut/line, data: [{label,value,color}]） `steps`（current, steps: [{title,desc}]）
+- 展示：`text`（size: h1/h2/h3/body/caption/muted, content, center） `badge`（label, tone: success/warn/danger/accent） `stat`（label, value） `list`（items 字符串或 {title,desc}） `table`（columns, rows） `divider` `avatar`（name, color） `chart`（kind: bars/donut/line, data: [{label,value,color}]） `steps`（current, steps: [{title,desc}]） **`loading`（label，旋转指示器）** **`skeleton`（lines 1–8，variant: line/block）**
 - 表单：`form` `input`（label, placeholder, inputType, action） `select`（label, options, selected, action） `textarea`（label, placeholder, action） `checkbox`/`radio`（label, checked, action） `button`（text, style: primary/secondary/ghost/danger, full, small, action） `link`（label, href）
 
 ### 产品上下文（可选，推荐）——通用适配的落点
@@ -148,8 +151,8 @@ triggers:
 - [ ] 呼吸克制：配色 ≤3 色 + 中性色，间距全走 4/8px，字号走阶梯，无高饱和泛滥
 - [ ] 每屏只有一个 primary 主操作按钮
 - [ ] 组件（按钮/输入框/卡片）风格全页统一
-- [ ] 表单字段有 label，输入框高度 42px
-- [ ] 空状态/加载/错误三态齐全（应用类）
+- [ ] 表单字段有 label，输入框/按钮高度统一为 40px（4px 栅格）
+- [ ] 空状态/加载/错误三态齐全（应用类）：空 → `text` muted 或 `empty` 语义；加载 → `loading` 或 `skeleton`；错误 → `badge` tone=danger 或 `text`（v1.3.0 起 `loading`/`skeleton` 已是白名单组件，可直接写进规格）
 - [ ] 配套代码符合 code-style.json
 - [ ] 若收到过 [fuse-inspect]，确认 observed 与 expected 的 diff 已被本轮修正消除
 

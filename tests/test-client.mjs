@@ -182,6 +182,30 @@ console.log('\n[5] 白名单拒绝：未知组件 → 错误提示')
   check('未知组件被拒绝', !!last && last.textContent.includes('未知组件类型'), last && last.textContent)
 }
 
+console.log('\n[5.5] 三态组件：loading / skeleton 渲染（v1.3.0）')
+{
+  insertFenceBlock(JSON.stringify({
+    type: 'dashboard',
+    title: '加载态演示',
+    theme: 'default',
+    components: [
+      { type: 'loading', label: '正在加载数据…' },
+      { type: 'skeleton', lines: 3 },
+      { type: 'skeleton', lines: 2, variant: 'block' },
+    ],
+  }))
+  await tick()
+  // DOM 通道为每个围栏追加一个块，取最后插入的那组
+  const load = [...document.querySelectorAll('.fuse-loading')].pop()
+  check('loading 组件渲染（含旋转指示器与文案）', !!load && !!load.querySelector('.spinner') && load.textContent.includes('正在加载数据…'), load && load.textContent)
+  const lines = [...document.querySelectorAll('.fuse-skeleton.line')]
+  check('skeleton 组件渲染（lines:3 → 3 条 line）', lines.length >= 3, String(lines.length))
+  const blocks = [...document.querySelectorAll('.fuse-skeleton.block')]
+  check('skeleton variant=block 生效（2 条）', blocks.length >= 2, String(blocks.length))
+  const group = [...document.querySelectorAll('.fuse-skeleton-group')].pop()
+  check('skeleton 分组容器渲染', !!group && group.children.length === 2, group ? String(group.children.length) : 'none')
+}
+
 console.log('\n[6] 清理（disposer）')
 {
   disposer()

@@ -40,6 +40,19 @@ test('未知组件类型被拒绝', () => {
   assert.ok(errs.some((e) => e.includes('未知组件类型')))
 })
 
+test('三态组件 loading / skeleton 在白名单内（v1.3.0）', () => {
+  const spec = {
+    type: 'form',
+    theme: 'default',
+    components: [
+      { type: 'loading', label: '载入中' },
+      { type: 'skeleton', lines: 3 },
+      { type: 'skeleton', lines: 2, variant: 'block' },
+    ],
+  }
+  assert.deepEqual(validateFuseSpec(spec), [])
+})
+
 test('未知主题被拒绝', () => {
   const spec = { type: 'form', theme: 'neon-rainbow', components: [{ type: 'text', content: 'x' }] }
   const errs = validateFuseSpec(spec)

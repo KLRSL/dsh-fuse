@@ -4,7 +4,7 @@
 >
 > [简体中文](README.md) · [English](README.en.md)
 
-> **v1.2.4** · MIT License · DSH ≥ 0.1.1-rc.2（已适配 0.1.5-rc.1）· Node `^22.19.0 || >=24.0.0`
+> **v1.3.0** · MIT License · DSH ≥ 0.1.1-rc.2（已适配 **0.2.0-rc.2（桌面版）**）· Node `^22.19.0 || >=24.0.0`
 
 dsh-fuse 是 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）插件，也是 **ui-aesthetics 技能的插件化升级版**：把审美规范数值化为设计令牌（`theme.json`）、把代码规约沉淀为 `code-style.json`，让生成的页面级 UI **从构造上就正确**，并通过闭环走查器把细节微调到像素级。
 
@@ -31,7 +31,7 @@ dsh-fuse 是 [DeepSeek Harness](https://github.com/deepseek-ai/dsh)（DSH）插�
 | 设计令牌 | `theme.json`：default / apple / dark 三套主题，CSS 变量映射，新风格即插即用 |
 | 设计原则 | 骨架 → 血肉 → 呼吸；适配四问（产品/受众/任务/媒介）结论写入根节点 `context` |
 | 代码规范 | 生成配套代码必守 `code-style.json`（命名 / 格式化 / 语法 / CSS） |
-| 双通道渲染 | 宿主提供 `registerFenceRenderer` 扩展点时直挂；原版 DSH 回退 DOM 通道 |
+| DOM 渲染通道 | `MutationObserver` 扫描对话流中标 `dsh-fuse` 的代码块接管渲染（v1.3.0：0.2.0-rc.2 的 9004 个文件里已无 `registerFenceRenderer` 扩展点，registry 通道是死路径，按官方规范一并删除） |
 | 深色模式 | 插件壳跟随 DSH 主题：双通道探测（`body[data-ds-dark-theme]` / `prefers-color-scheme` + MutationObserver） |
 
 ## 安装
@@ -55,9 +55,7 @@ dsh plugin --profile web add link:./dsh-fuse
 ### 安装后验证
 
 1. **宿主半区** —— 启动日志出现 `[dsh-fuse] 启动完成：系统指令 + validate_fuse_spec + /api/fuse/config`；系统提示词包含 Fuse 段（`name: fuse`，`order: 106`）；tools 服务可用时 `validate_fuse_spec` 工具注册成功。
-2. **浏览器半区** —— 控制台报告所用通道：
-   - `[dsh-fuse] fence-registry 通道已挂载`（注册表通道，契约宿主）
-   - `[dsh-fuse] fence-registry 扩展点不存在（原版 DSH）——启用 DOM 渲染通道`（DOM 通道）
+2. **浏览器半区** —— 控制台报告：`[dsh-fuse] 使用 DOM 渲染通道（0.2.0-rc.2 无 fence-registry 扩展点）`
 3. **配置 API** —— `GET http://localhost:<端口>/api/fuse/config` 返回 `{ themes, codeStyle, pageKinds, componentTypes }`。
 
 然后让模型「做一个登录页」——对话流中应直接出现渲染好的 `dsh-fuse` 预览卡。
@@ -234,10 +232,12 @@ dsh-fuse/
 
 **浏览器半区（client.js）** —— 零依赖纯 DOM 渲染器（经 `__ModuleLoader__` 加载），内置 `installShellThemeSync()` 做 DSH 主题跟随，以及走查器与撤销机制。
 
-**双通道渲染** —— 两侧各自探测宿主：
+**DOM 渲染通道** —— 客户端用 `MutationObserver` 扫描对话流中标 `dsh-fuse` 的代码块（`pre`、`.md-code-block`、`[data-lang]`）接管渲染（带双重渲染守卫，容器与内嵌 `<pre>` 只接管一次）。
 
-- *注册表通道：* 宿主提供 `registerFenceRenderer('dsh-fuse', …)`（DSH `0.1.2-rc.1` 契约）时直挂；
-- *DOM 通道：* 原版 DSH 无扩展点 → `MutationObserver` 扫描对话流中标 `dsh-fuse` 的代码块（`pre`、`.md-code-block`、`[data-lang]`）接管渲染（带双重渲染守卫，容器与内嵌 `<pre>` 只接管一次）。
+> v1.3.0 说明：此前还存在一条"注册表通道"——用 `require('@deepseek-ai/dsh-client-ui-primitives')` 探测宿主的
+> `registerFenceRenderer` 扩展点。实测 0.2.0-rc.2 桌面版运行时（全 asar 9004 个文件）**不存在该扩展点**，
+> 且官方 `references/practices.md` §UI 第 1 条明令禁止插件 require 任何 Harness Client 包——两条理由都指向删除，
+> 现只保留真实生效的 DOM 通道。
 
 **宽度契约** —— 渲染卡片 `max-width: var(--dsh-chat-content-width, 748px)`：宽度继承 DSH 对话内容宽度（**实测 680–920px 区间**，随窗口/侧栏变化；`748px` 只是变量缺失时的兜底值），居中并与输入框对齐，全屏也不撑满。
 
@@ -277,6 +277,7 @@ node scripts/release-check.mjs
 
 | 版本 | 日期 | 要点 |
 | --- | --- | --- |
+| **v1.3.0** | 2026-09-29 | **适配 DSH 0.2.0-rc.2 + 补齐三态 + 样式规范化**：①删除违规的 `require('@deepseek-ai/dsh-client-ui-primitives')` 与依赖它的"注册表通道"（全 asar 9004 文件无 `registerFenceRenderer`，且官方 practices.md §UI 第 1 条禁止 require Harness Client 包），`dsh.client.inject` 同步清理；②新增白名单组件 **`loading` / `skeleton`（lines 1–8, variant line/block）**，补齐全空/加载/错误三态，校验器、渲染器、单测、DOM 测试四处同构；③样式全面归位：间距仅 4/8/12/16/20/24/40、字号仅 12/14/16/20/28/36/48、圆角 4/8/12/999（`0.2.0` 下自动审计违规声明数 = 0），补 `:focus-visible` 焦点环与 `prefers-reduced-motion` 适配。测试 35/35 + DOM 通道全通过 |
 | **v1.2.4** | 2026-09-20 | **三处「说得出名字、实际不会发生」修复 + 两道令牌守卫**：①**根级 `actions` 此前没有读取点**——系统指令与 README 都要求模型把主操作写在根 `actions`，渲染器只读 `hero.actions`，导致主操作静默消失；现渲染为 `.fuse-root-actions` 操作条。②按钮字段兼容：规格用 `label`/`tone`，渲染器只认 `text`/`style` → 按规格写的按钮是**空白按钮**；现双认，并补 `.fuse-btn-triggered` 的可见样式（此前无任何 CSS）。③按钮点击阻止冒泡：此前一次点击会同时触发 `[fuse-action]` 与容器的 `[fuse-inspect]`。④新增 `tests/theme-contrast.test.mjs`（WCAG 2.1）并**当场修掉 5 处真实违规**（default 弱化正文 4.47→4.60、default/brand 强调色 2.77→3.11、apple warning、packer secondary 2.15→3.16）。⑤新增 `tests/theme-token-sync.test.mjs` 令牌漂移守卫，抓出并修正深色 `--fs-shell-accent` 与 theme.json 不一致。⑥合规：客户端 bundle 迁入 `lib/client.js`、条目 id 统一为包名。32 测试全绿 |
 | **v1.2.3** | 2026-09-17 | 规格校验器抽为**单一事实来源** `spec-validator.mjs`：宿主 `index.mjs` 改为 import（删掉自己那份副本），浏览器半区 `client.js` 的生成区间由 `npm run build:client`（`scripts/build-client.mjs`，逐字节复制 + 统一缩进）注入，`--check` 与单测双重防漂移——根治「宿主放行、前端拒绝」的判定分裂；新增差分对拍（24 条样本：白名单 / 容器与 tabs 递归 / 深度与预算边界 / 主题），宿主与前端判定零分歧；`spec-validator.mjs` 纳入发布白名单 |
 | **v1.2.2** | 2026-09-16 | 安全与一致性修复：`steps` 的 title/desc 不再用 `innerHTML` 拼接（改 DOM 节点 + `textContent`，堵住 fence 注入路径）；节点预算真正生效——声明后从未使用的 `MAX_NODES` 改为 60 并在超限时报错拒绝渲染，宿主与渲染器两侧同构；宿主校验补上 `tabs.items[].content` 递归（此前 tab 内非法组件能过宿主校验却必被前端拒绝）；撤销栈只收结构完整且非流式的快照并与上一条 `raw` 去重（中间态不再挤爆 10 格）；流式重渲染用 requestAnimationFrame 合并（120ms 尾沿兜底）；`parseSpec` 括号补齐改按字符串状态机；补 `page` 容器的渲染分支；首帧令牌未就绪时异步补齐；窗口宽度文档改为「继承对话宽度（实测 680–920px）」；`test` 脚本改为跨平台 glob；`dsh-system-prompt` 标记为 optional peer |
