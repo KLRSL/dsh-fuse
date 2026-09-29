@@ -1,7 +1,7 @@
 {
   "name": "dsh-fuse",
   "version": "1.3.0",
-  "description": "Fuse v1.3.0 — 适配 DSH 0.2.0-rc.2：删除违规的 require('@deepseek-ai/dsh-client-ui-primitives') 与其依赖的注册表通道（全 asar 9004 文件无 registerFenceRenderer，且官方 practices.md §UI 第 1 条禁止 require 任何 Harness Client 包），dsh.client.inject 同步清理；新增白名单组件 loading / skeleton（lines 1–8，variant line/block）补齐空/加载/错误三态；样式全面归位 4/8px 栅格与字号阶梯（间距仅 4/8/12/16/20/24/40，字号仅 12/14/16/20/28/36/48，圆角 4/8/12/999，自动审计违规数 0），补 :focus-visible 焦点环与 prefers-reduced-motion 适配；code-style.json 增补 accessibility 与三态规范。上一版 v1.2.4：根级 actions 渲染（主操作不再消失）+ 按钮 label/tone 字段兼容 + 点击不再双发指令 + 对比度守卫（WCAG，修正 5 处令牌违规）+ 令牌漂移守卫 + 客户端 bundle 迁入 lib/； UI 设计 + 代码规范一体化插件（ui-aesthetics 技能升级版）：设计令牌 theme.json（含品牌色单一事实来源）+ 代码规范 code-style.json + dsh-fuse fence 页面级渲染 + 走查器像素级微调 + 撤销历史 + 渲染状态回传（Spec valid≠Render correct）+ 通用适配流程与风格扩展；插件 UI 壳按功能设计语言（设计工作台/蓝紫）+ 深色模式适配（DSH 主题 dsw-alias 跟随，双通道探测）。v1.2.3：规格校验器抽为 spec-validator.mjs 单一事实来源——宿主 import、client.js 由 npm run build:client 注入生成区间，--check 与单测双重防漂移；v1.2.2：steps 去掉 innerHTML 注入、节点预算 60 真正生效且宿主/前端同构（含 tabs 内容递归）、撤销快照只收完整非流式状态",
+  "description": "dsh-fuse v1.3.0：UI 设计与代码规范一体化插件（设计令牌 + fence 页面级渲染 + 逐条就地微调 + 截图走查）。",
   "type": "module",
   "main": "index.mjs",
   "exports": {
