@@ -14,7 +14,7 @@
 //
 // 浏览器半区见 client.js（渲染器 + 走查器 + 撤销历史）。
 //
-// 官方契约要点（rc.6/rc.7，与 dsh-biomemory 同款、逐条核对过 lib 源码）：
+// 官方契约要点（rc.6/rc.7，与 dsh-memory-layer 同款、逐条核对过 lib 源码）：
 //   - PromptSection = { name, order, text }；缺 name/text 会破坏提示词装配
 //   - 工具体签名 execute(args, exec)；output.render(args, value) 返回
 //     ContentBlock[]（[{type:'text',text}]）；参数 schema 字段名 parameters
