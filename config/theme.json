@@ -1,14 +1,14 @@
 {
-  "$comment": "Fuse 设计令牌 —— 从 ui-aesthetics 技能规范数值化（配色≤3色 + 4/8px栅格 + 字体阶梯 + 圆角体系）。颜色参考 OpenPencil 设计令牌体系。",
+  "$comment": "Fuse 设计令牌 —— 配色刻意避开「AI 蓝紫/青紫渐变」：default = 松绿 + 陶土 + 纸白；apple = 中性灰 + 墨绿；dark = 暖石墨 + 鼠尾草绿 + 琥珀。配色 ≤3 色 + 中性色，间距 4/8 栅格，字号阶梯 12/14/16/20/28/36/48。",
   "brand": {
-    "$comment": "插件品牌色（功能语义设计语言，单一事实来源）：fuse=蓝紫（UI 设计/渲染）、biomemory=紫粉（记忆/神经）、packer=橙琥珀（打包/迁移）；主/辅/点缀三层，浅深两套；中性色与语义反馈色（success/warning/error）统一取自 themes.default / themes.dark",
+    "$comment": "插件品牌色（功能语义，单一事实来源）：fuse=松绿（UI 设计/渲染）、biomemory=紫粉（记忆/神经）、packer=橙琥珀（打包/迁移）；主/辅/点缀三层，浅深两套。",
     "fuse": {
-      "primary": "#2563EB",
-      "darkPrimary": "#22D3EE",
-      "secondary": "#8B5CF6",
-      "darkSecondary": "#A78BFA",
-      "accent": "#049BDF",
-      "darkAccent": "#22D3EE"
+      "primary": "#2F5D50",
+      "darkPrimary": "#8FBFA6",
+      "secondary": "#6E8B7B",
+      "darkSecondary": "#A9C9B6",
+      "accent": "#C8763F",
+      "darkAccent": "#E0A66B"
     },
     "biomemory": {
       "primary": "#7C3AED",
@@ -29,20 +29,20 @@
   },
   "themes": {
     "default": {
-      "$comment": "现代极简（ui-aesthetics 默认风格）",
+      "$comment": "现代极简 · 松绿纸调（暖白底 + 松绿主色 + 陶土点缀）",
       "colors": {
-        "primary": "#2563EB",
-        "accent": "#049BDF",
-        "neutralBg": "#FFFFFF",
-        "neutralSurface": "#F5F6F8",
-        "neutralText": "#1A1A1A",
-        "neutralTextMuted": "#69707E",
-        "border": "#E5E7EB"
+        "primary": "#2F5D50",
+        "accent": "#C8763F",
+        "neutralBg": "#FBFAF7",
+        "neutralSurface": "#F1EFE8",
+        "neutralText": "#1F2321",
+        "neutralTextMuted": "#6B6E6A",
+        "border": "#E2DED2"
       },
       "feedback": {
-        "success": "#2E7D32",
-        "warning": "#ED6C02",
-        "error": "#C62828"
+        "success": "#4A7C59",
+        "warning": "#C98A2B",
+        "error": "#B04A3A"
       },
       "spacing": {
         "xs": 4,
@@ -73,15 +73,15 @@
         "lg": 16
       },
       "shadow": {
-        "card": "0 1px 3px rgba(26,26,26,0.08)",
-        "float": "0 10px 30px rgba(26,26,26,0.14)"
+        "card": "0 1px 2px rgba(31,35,33,0.05)",
+        "float": "0 12px 32px rgba(31,35,33,0.10)"
       }
     },
     "apple": {
-      "$comment": "苹果 HIG（大圆角 + 玻璃拟态 + 浅灰底 #F5F5F7）",
+      "$comment": "苹果 HIG · 中性灰 + 墨绿（大圆角、浅灰底）",
       "colors": {
-        "primary": "#0071E3",
-        "accent": "#5856D6",
+        "primary": "#1D6B4F",
+        "accent": "#B06A3B",
         "neutralBg": "#F5F5F7",
         "neutralSurface": "#FFFFFF",
         "neutralText": "#1D1D1F",
@@ -90,8 +90,8 @@
       },
       "feedback": {
         "success": "#248A3D",
-        "warning": "#D37100",
-        "error": "#D70015"
+        "warning": "#C77700",
+        "error": "#C7362B"
       },
       "spacing": {
         "xs": 4,
@@ -127,20 +127,20 @@
       }
     },
     "dark": {
-      "$comment": "暗黑科技（#0F1115 底 + 青/紫渐变强调）",
+      "$comment": "暗黑 · 暖石墨 + 鼠尾草绿 + 琥珀（避开冷青/紫的 AI 感）",
       "colors": {
-        "primary": "#22D3EE",
-        "accent": "#A78BFA",
-        "neutralBg": "#0F1115",
-        "neutralSurface": "#1A1D23",
-        "neutralText": "#E8EAED",
-        "neutralTextMuted": "#9AA0A6",
-        "border": "#2A2E37"
+        "primary": "#8FBFA6",
+        "accent": "#E0A66B",
+        "neutralBg": "#16171A",
+        "neutralSurface": "#1E2025",
+        "neutralText": "#EDEBE6",
+        "neutralTextMuted": "#9C9A93",
+        "border": "#2C2F33"
       },
       "feedback": {
-        "success": "#34D399",
-        "warning": "#FBBF24",
-        "error": "#F87171"
+        "success": "#86C39B",
+        "warning": "#E3B04B",
+        "error": "#E08B7A"
       },
       "spacing": {
         "xs": 4,
