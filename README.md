@@ -1,8 +1,14 @@
 # dsh-fuse
 
-> 把 `dsh-fuse` 围栏渲染成页面级 UI 的 DSH 插件。只做渲染，不做平台化。
+> 对话里写一段 JSON，就长出一页能点的界面；看完可以导成 HTML 带走。
 
-**v2.0.4** · MIT License · DSH 0.2.x（`>=0.2.0-rc.2 <0.3.0-0`）· Node `^22.19.0` 或 `>=24.0.0`
+**v2.0.5** · MIT License · DSH 0.2.x（`>=0.2.0-rc.2 <0.3.0-0`，0.2.1-rc.3 桌面版实测）· Node `^22.19.0` 或 `>=24.0.0`
+
+---
+
+![示例：把一段 JSON 渲染成运营看板](docs/preview.png)
+
+上面这张图**不是画的**：它就是下面那段 JSON 交给渲染器之后的输出（`tests/make-preview.mjs` 生成独立 HTML，再用无头浏览器截图），所以和你在对话里看到的完全一致。
 
 ---
 
@@ -22,12 +28,21 @@
 ## 规格
 
 ```json
-{"type":"dashboard","title":"运营看板","theme":"default","components":[
-  {"type":"stat","value":"1,284","label":"今日新增"},
-  {"type":"progress","label":"月度目标","value":68,"max":100},
-  {"type":"chart","kind":"bars","data":[{"label":"一","value":12},{"label":"二","value":18}]}
+{"type":"dashboard","title":"今日运营","theme":"default","components":[
+  {"type":"row","components":[
+    {"type":"stat","value":"1,284","label":"今日新增"},
+    {"type":"stat","value":"96.2%","label":"任务成功率"}
+  ]},
+  {"type":"card","title":"月度目标","components":[
+    {"type":"progress","label":"完成度","value":68,"max":100}
+  ]},
+  {"type":"card","title":"近 5 日","components":[
+    {"type":"chart","kind":"bars","data":[{"label":"一","value":12},{"label":"二","value":18}]}
+  ]}
 ]}
 ```
+
+> 上面这张预览图对应的就是这段 JSON。容器（`row` / `card` / `grid` / …）里写子节点时，**`components` 和 `items` 都认**。
 
 | 字段 | 必填 | 说明 |
 |---|---|---|
@@ -74,16 +89,28 @@ v2 全部删掉：这些都是「微调 / 平台化」能力，不是渲染本�
 ## 测试
 
 ```bash
-npm test        # node tests/all.mjs
+npm test        # node tests/all.mjs（8 项）
 ```
 
 CI（GitHub Actions）：Node 22.x / 24.x 矩阵 → `npm install` → `npm test` → `npm pack --dry-run`。
+
+## 预览图怎么来的
+
+```bash
+node tests/make-preview.mjs     # 用真实渲染器把示例规格渲成 docs/preview.html
+# 再用无头浏览器截图（本机 CentBrowser / Edge 均可）：
+# chrome --headless=new --force-device-scale-factor=2 --window-size=880,820 \
+#        --screenshot=docs/preview.png file:///<绝对路径>/docs/preview.html
+```
+
+图里的内容 = 示例规格的真实输出，改了渲染器就重跑一遍，不要手绘。
 
 ## 版本历史
 
 | 版本 | 日期 | 说明 |
 |---|---|---|
-| **v2.0.4** | 2026-10-25 | 插件卡片文案改走 `locale`（标题「页面渲染」），`description` 改成一句英文；功能无变更 |
+| **v2.0.5** | 2026-10-25 | **修渲染 bug**：容器（`row`/`grid`/`col`/`card`/`section`/`form`）过去只认 `items`，用 `components` 写的嵌套会被校验放行、渲染成空壳；现在两者都认。补「嵌套组件」回归测试（8 项）+ README 预览图 |
+| v2.0.4 | 2026-10-25 | 插件卡片文案改走 `locale`（标题「页面渲染」），`description` 改成一句英文；功能无变更 |
 | v2.0.0 – v2.0.3 | 2026-10-25 | 收敛为单一职责：删走查器 / 撤销 / 设置页 / 预检工具，重写渲染器与测试，新增 `spec.mjs`、`tests/all.mjs` |
 | v1.x | 2026-09 及更早 | 旧版（含走查器与设置页），已冻结不再维护 |
 

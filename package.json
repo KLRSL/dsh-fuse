@@ -1,6 +1,6 @@
 {
   "name": "dsh-fuse",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Renders full pages (login, dashboard, table, form) inside the chat; export as standalone HTML.",
   "type": "module",
   "main": "index.mjs",
@@ -16,6 +16,7 @@
     "lib",
     "config",
     "locale",
+    "docs",
     "cordis.patch.yml",
     "README.md"
   ],

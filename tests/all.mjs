@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const SELF = fileURLToPath(new URL('./run.mjs', import.meta.url))
-const CASES = ['词汇表同步', '宿主集成', '合法渲染', '流式骨架屏', '流式结束升级错误卡', '非法规格错误卡', '令牌对比度']
+const CASES = ['词汇表同步', '宿主集成', '合法渲染', '嵌套组件', '流式骨架屏', '流式结束升级错误卡', '非法规格错误卡', '令牌对比度']
 
 let failed = 0
 for (const name of CASES) {

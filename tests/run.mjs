@@ -62,6 +62,35 @@ const cases = {
     assert.ok(text.includes(String(FUSE_MAX_NODES)) && text.includes(String(FUSE_MAX_DEPTH)))
   },
 
+  '嵌套组件': async () => {
+    // 回归：容器（row/grid/col/card/section/form/page）过去只认 node.items，
+    // 而校验器认 items ?? components —— 用 components 写的嵌套会被校验放行、渲染成空壳。
+    const spec = {
+      type: 'dashboard',
+      title: '嵌套',
+      theme: 'default',
+      components: [
+        { type: 'row', components: [
+          { type: 'stat', value: '1,284', label: '今日新增' },
+          { type: 'stat', value: '96.2%', label: '任务成功率' },
+        ] },
+        { type: 'grid', cols: 2, components: [
+          { type: 'card', title: '月度目标', components: [{ type: 'progress', label: '完成度', value: 68, max: 100 }] },
+          { type: 'card', title: '近 5 日', components: [{ type: 'chart', kind: 'bars', data: [{ label: '一', value: 12 }, { label: '二', value: 18 }] }] },
+        ] },
+      ],
+    }
+    const { document, close } = boot(block(JSON.stringify(spec)))
+    await wait(80)
+    assert.equal(document.querySelectorAll('.fuse-row .fuse-stat').length, 2, 'row 里的 stat 应渲染')
+    assert.equal(document.querySelector('.fuse-row .fuse-stat .v')?.textContent, '1,284')
+    assert.ok(document.querySelector('.fuse-grid .fuse-card-box'), 'grid 里的 card 应渲染')
+    assert.ok(document.querySelector('.fuse-grid .fuse-progress .fill'), 'card 里的 progress 应渲染')
+    assert.equal(document.querySelectorAll('.fuse-chart .bar').length, 2, 'card 里的 chart 柱应渲染')
+    assert.equal(document.querySelectorAll('.fuse-error').length, 0)
+    close()
+  },
+
   '合法渲染': async () => {
     const spec = {
       type: 'dashboard',
