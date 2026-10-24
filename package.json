@@ -1,12 +1,13 @@
 {
   "name": "dsh-fuse",
-  "version": "2.0.3",
-  "description": "dsh-fuse：只做一件事——把 dsh-fuse 围栏渲染成页面级 UI（三态兜底 + 一键导出 HTML + 宽度切换）。无设置页、无走查器、无预检工具。",
+  "version": "2.0.4",
+  "description": "Renders full pages (login, dashboard, table, form) inside the chat; export as standalone HTML.",
   "type": "module",
   "main": "index.mjs",
   "exports": {
     ".": "./index.mjs",
     "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json"
   },
   "files": [
@@ -14,6 +15,7 @@
     "spec.mjs",
     "lib",
     "config",
+    "locale",
     "cordis.patch.yml",
     "README.md"
   ],

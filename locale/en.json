@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Page Render",
+    "description": "Renders full pages (login, dashboard, table, form) inside the chat; export as standalone HTML."
+  }
+}
