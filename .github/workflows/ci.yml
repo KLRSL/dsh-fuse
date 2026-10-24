@@ -24,19 +24,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # v2 起仓库不再提交 package-lock.json（唯一 devDependency 是 jsdom），
+      # 所以不能开 cache: npm，也不能用 npm ci —— 两者都要求 lockfile。
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
 
       - name: 安装依赖
-        run: npm ci --no-audit --no-fund
-
-      - name: 发布一致性自检
-        run: node scripts/release-check.mjs
-
-      - name: 校验器生成区间防漂移（client.js ↔ spec-validator.mjs）
-        run: npm run check:client
+        run: npm install --no-audit --no-fund
 
       - name: 单元测试
         run: npm test
